@@ -1,0 +1,41 @@
+network:
+  name: calendar_app_network
+
+frontend:
+  build:
+    context: ./frontend
+    dockerfile: Dockerfile
+  ports:
+    - "3000:3000"
+  volumes:
+    - ./frontend:/app
+  networks:
+    - calendar_app_network
+
+db:
+  image: postgres:latest
+  ports:
+    - "5432:5432"
+  environment:
+    POSTGRES_USER: user
+    POSTGRES_PASSWORD: password
+    POSTGRES_DB: mydatabase
+  volumes:
+    - db_data:/var/lib/postgresql/data
+  networks:
+    - calendar_app_network
+
+backend:
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  ports:
+    - "5000:5000"
+  volumes:
+    - ./backend:/app
+  environment:
+    - DATABASE_URL=postgresql://user:password@db:5432/mydatabase
+  depends_on:
+    - db
+  networks:
+    - calendar_app_network
