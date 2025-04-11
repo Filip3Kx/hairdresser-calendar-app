@@ -35,3 +35,30 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintln(w, "Booking created")
 }
+
+func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := db.Query("SELECT date FROM bookings")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to fetch bookings: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var bookings []string
+	for rows.Next() {
+		var date string
+		if err := rows.Scan(&date); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to parse bookings: %v", err), http.StatusInternalServerError)
+			return
+		}
+		bookings = append(bookings, date)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(bookings)
+}

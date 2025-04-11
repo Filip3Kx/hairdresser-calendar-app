@@ -18,7 +18,8 @@ func main() {
 	defer db.Close()
 
 	http.HandleFunc("/hello", helloHandler)
-	http.HandleFunc("/bookings", createBookingHandler)
+	http.HandleFunc("/bookings/create", createBookingHandler)
+	http.HandleFunc("/bookings/get", getBookingsHandler)
 
 	fmt.Println("Starting server on :5000")
 	if err := http.ListenAndServe(":5000", nil); err != nil {
