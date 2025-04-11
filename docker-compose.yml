@@ -9,7 +9,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3000:80"
     networks:
       - calendar_app_network
 
@@ -22,6 +22,8 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: calendar_app
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - calendar_app_network
 
@@ -33,7 +35,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/calendar_app
+      - DATABASE_URL=postgresql://user:password@db:5432/calendar_app?sslmode=disable
     depends_on:
       - db
     networks:
