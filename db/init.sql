@@ -3,5 +3,7 @@ CREATE TABLE bookings (
     name TEXT NOT NULL,
     surename TEXT NOT NULL,
     email TEXT NOT NULL,
-    date DATE NOT NULL
+    date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL
 );

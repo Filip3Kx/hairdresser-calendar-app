@@ -26,7 +26,7 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO bookings (name, surename, email, date) VALUES ($1, $2, $3, $4)", b.Name, b.Surename, b.Email, b.Date)
+	_, err = db.Exec("INSERT INTO bookings (name, surename, email, date, start_time, end_time) VALUES ($1, $2, $3, $4, $5, $6)", b.Name, b.Surename, b.Email, b.Date, b.StartTime, b.EndTime)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to insert booking: %v", err), http.StatusInternalServerError)
 		return
@@ -42,21 +42,25 @@ func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.Query("SELECT date FROM bookings")
+	rows, err := db.Query("SELECT date, start_time, end_time FROM bookings")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to fetch bookings: %v", err), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
 
-	var bookings []string
+	var bookings []map[string]string
 	for rows.Next() {
-		var date string
-		if err := rows.Scan(&date); err != nil {
+		var date, startTime, endTime string
+		if err := rows.Scan(&date, &startTime, &endTime); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to parse bookings: %v", err), http.StatusInternalServerError)
 			return
 		}
-		bookings = append(bookings, date)
+		bookings = append(bookings, map[string]string{
+			"date":       date,
+			"start_time": startTime,
+			"end_time":   endTime,
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
