@@ -1,42 +1,13 @@
 package main
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 var db *sql.DB
-
-func generateAPIKey() (string, error) {
-	key := make([]byte, 32) // 32 bytes = 256 bits
-	_, err := rand.Read(key)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(key), nil
-}
-
-func encryptPassword(password string) (string, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-	return string(hashedPassword), nil
-}
-
-func decryptPassword(encryptedPassword, password string) error {
-	err := bcrypt.CompareHashAndPassword([]byte(encryptedPassword), []byte(password))
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Hello, World!")
@@ -48,6 +19,13 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	apiKey := r.Header.Get("Authorization")
+	if apiKey != "" {
+		if valid, _ := validateAPIKey(apiKey); !valid {
+			http.Error(w, "Invalid API key", http.StatusUnauthorized)
+			return
+		}
+	}
 	var b Booking
 	err := json.NewDecoder(r.Body).Decode(&b)
 	if err != nil {
@@ -55,14 +33,22 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO bookings (name, surename, email, date, start_time, end_time) VALUES ($1, $2, $3, $4, $5, $6)", b.Name, b.Surename, b.Email, b.Date, b.StartTime, b.EndTime)
+	err = db.QueryRow("SELECT id FROM users WHERE api_key = $1", apiKey).Scan(&b.UserId)
+	if err != nil {
+		valid, _ := validateUserExistence(b.Email)
+		if valid {
+			http.Error(w, "User already exists, please log in or use another e-mail", http.StatusConflict)
+			return
+		}
+		_, err = db.Exec("INSERT INTO bookings (name, surename, email, date, start_time, end_time) VALUES ($1, $2, $3, $4, $5, $6)", b.Name, b.Surename, b.Email, b.Date, b.StartTime, b.EndTime)
+	} else {
+		_, err = db.Exec("INSERT INTO bookings (name, surename, email, date, start_time, end_time, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7)", b.Name, b.Surename, b.Email, b.Date, b.StartTime, b.EndTime, b.UserId)
+	}
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to insert booking: %v", err), http.StatusInternalServerError)
 		return
 	}
-
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintln(w, "Booking created")
 }
 
 func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
@@ -106,6 +92,12 @@ func registerUserHandler(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&u)
 	if err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	valid, _ := validateUserExistence(u.Email)
+	if valid {
+		http.Error(w, "User already exists", http.StatusConflict)
 		return
 	}
 

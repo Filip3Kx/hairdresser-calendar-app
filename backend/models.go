@@ -7,6 +7,7 @@ type Booking struct {
 	Date      string `json:"date"`
 	StartTime string `json:"start_time"`
 	EndTime   string `json:"end_time"`
+	UserId    int    `json:"user_id"`
 }
 
 type User struct {

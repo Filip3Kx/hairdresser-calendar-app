@@ -3,6 +3,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useEffect, useState, useRef } from 'react';
+import Cookies from 'js-cookie';
 
 export default function Calendar() {
   const [events, setEvents] = useState([]);
@@ -31,6 +32,13 @@ export default function Calendar() {
   const calendarRef = useRef(null);
 
   useEffect(() => {
+    const storedApiKey = Cookies.get('apiKey');
+    if (storedApiKey) {
+      console.log('API Key loaded from cookie:', storedApiKey);
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchBookings = async () => {
       try {
         const response = await fetch('/bookings/get', { method: 'GET' });
@@ -38,8 +46,8 @@ export default function Calendar() {
           const bookings = await response.json();
           const mappedEvents = bookings.map((booking) => ({
             title: 'Taken',
-            start: new Date(`${booking.date}T${booking.start_time}`).toISOString(),
-            end: new Date(`${booking.date}T${booking.end_time}`).toISOString(),
+            start: new Date(`${booking.date.split('T')[0]}T${booking.start_time.split('T')[1].slice(0, 5)}`).toISOString(),
+            end: new Date(`${booking.date.split('T')[0]}T${booking.end_time.split('T')[1].slice(0, 5)}`).toISOString(),
             allDay: false,
           }));
           setEvents(mappedEvents);
@@ -84,7 +92,8 @@ export default function Calendar() {
       });
       if (response.ok) {
         const data = await response.json();
-        alert(`Login successful! API Key: ${data.api_key}`);
+        alert(`Login successful!`);
+        Cookies.set('apiKey', data.api_key, { expires: 7 });
         setShowLogin(false);
       } else {
         const errorText = await response.text();
@@ -95,6 +104,12 @@ export default function Calendar() {
     }
   };
 
+  const handleLogout = () => {
+    Cookies.remove('apiKey');
+    alert('Logged out successfully!');
+    window.location.reload();
+  };
+
   const handleDateSelect = (selectInfo) => {
     setSelectedDate(selectInfo.startStr.split('T')[0]);
     setShowForm(true);
@@ -102,26 +117,21 @@ export default function Calendar() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const { name, surname, email, startTime, endTime } = formData;
     if (!name || !surname || !email || !startTime || !endTime) {
       alert('All fields are required');
       return;
     }
-
     const newStart = new Date(`${selectedDate}T${startTime}`);
     const newEnd = new Date(`${selectedDate}T${endTime}`);
-
     if (isNaN(newStart.getTime()) || isNaN(newEnd.getTime())) {
       alert('Invalid time format');
       return;
     }
-
     if (newStart >= newEnd) {
       alert('End time must be after start time');
       return;
     }
-
     const hasConflict = events.some((event) => {
       const eventStart = new Date(event.start);
       const eventEnd = new Date(event.end);
@@ -131,21 +141,21 @@ export default function Calendar() {
         newEnd > eventStart
       );
     });
-
     if (hasConflict) {
       alert('This time slot conflicts with an existing appointment');
       return;
     }
-
     const booking = { name, surname, email, date: selectedDate, start_time: startTime, end_time: endTime };
-
     try {
+      const apiKey = Cookies.get('apiKey'); // Retrieve API key from cookie
       const response = await fetch('/bookings/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `${apiKey}`, // Include API key in the headers
+        },
         body: JSON.stringify(booking),
       });
-
       if (response.ok) {
         alert('Booking created!');
         setShowForm(false);
@@ -165,11 +175,21 @@ export default function Calendar() {
     }
   };
 
+  const isLoggedIn = !!Cookies.get('apiKey'); // Check if the user is logged in
+
   return (
     <div>
       <div>
-        <button onClick={() => setShowRegister(true)}>Register</button>
-        <button onClick={() => setShowLogin(true)}>Login</button>
+        {!isLoggedIn ? (
+          <>
+            <button onClick={() => setShowRegister(true)}>Register</button>
+            <button onClick={() => setShowLogin(true)}>Login</button>
+          </>
+        ) : (
+          <>
+            <button onClick={handleLogout}>Logout</button>
+          </>
+        )}
         <button onClick={() => changeView('dayGridMonth')}>Month View</button>
         <button onClick={() => changeView('timeGridWeek')}>Week View</button>
         <button onClick={() => changeView('timeGridDay')}>Day View</button>
@@ -343,7 +363,7 @@ export default function Calendar() {
       )}
 
       <style jsx>{`
-        .calendar-container.disabled {
+      .calendar-container.disabled {
           pointer-events: none;
           opacity: 0.5;
         }
