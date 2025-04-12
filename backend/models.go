@@ -8,3 +8,11 @@ type Booking struct {
 	StartTime string `json:"start_time"`
 	EndTime   string `json:"end_time"`
 }
+
+type User struct {
+	Name     string `json:"name"`
+	Surename string `json:"surname"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	ApiKey   string `json:"api_key"`
+}

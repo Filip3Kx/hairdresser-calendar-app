@@ -1,13 +1,42 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var db *sql.DB
+
+func generateAPIKey() (string, error) {
+	key := make([]byte, 32) // 32 bytes = 256 bits
+	_, err := rand.Read(key)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(key), nil
+}
+
+func encryptPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
+}
+
+func decryptPassword(encryptedPassword, password string) error {
+	err := bcrypt.CompareHashAndPassword([]byte(encryptedPassword), []byte(password))
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Hello, World!")
@@ -65,4 +94,80 @@ func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(bookings)
+}
+
+func registerUserHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var u User
+	err := json.NewDecoder(r.Body).Decode(&u)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	encryptedPassword, err := encryptPassword(u.Password)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to encrypt password: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	apiKey, err := generateAPIKey()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to generate API key: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	_, err = db.Exec("INSERT INTO users (name, surename, email, password, api_key) VALUES ($1, $2, $3, $4, $5)", u.Name, u.Surename, u.Email, encryptedPassword, apiKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to register user: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	fmt.Fprintln(w, "User registered")
+}
+
+func loginUserHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var u User
+	err := json.NewDecoder(r.Body).Decode(&u)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	var encryptedPassword string
+	err = db.QueryRow("SELECT password FROM users WHERE email = $1", u.Email).Scan(&encryptedPassword)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "User not found", http.StatusUnauthorized)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Failed to fetch user: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	err = decryptPassword(encryptedPassword, u.Password)
+	if err != nil {
+		http.Error(w, "Invalid password", http.StatusUnauthorized)
+		return
+	}
+
+	var apiKey string
+	err = db.QueryRow("SELECT api_key FROM users WHERE email = $1", u.Email).Scan(&apiKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to fetch API key: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"api_key": apiKey})
 }

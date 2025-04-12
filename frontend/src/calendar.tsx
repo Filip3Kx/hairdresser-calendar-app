@@ -7,6 +7,8 @@ import { useEffect, useState, useRef } from 'react';
 export default function Calendar() {
   const [events, setEvents] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [formData, setFormData] = useState({
     startTime: '',
@@ -14,6 +16,16 @@ export default function Calendar() {
     name: '',
     surname: '',
     email: '',
+  });
+  const [authData, setAuthData] = useState({
+    name: '',
+    surname: '',
+    email: '',
+    password: '',
+  });
+  const [loginData, setLoginData] = useState({
+    email: '',
+    password: '',
   });
 
   const calendarRef = useRef(null);
@@ -26,8 +38,8 @@ export default function Calendar() {
           const bookings = await response.json();
           const mappedEvents = bookings.map((booking) => ({
             title: 'Taken',
-            start: new Date(`${booking.date.split('T')[0]}T${booking.start_time.split('T')[1].slice(0, 5)}`).toISOString(),
-            end: new Date(`${booking.date.split('T')[0]}T${booking.end_time.split('T')[1].slice(0, 5)}`).toISOString(),
+            start: new Date(`${booking.date}T${booking.start_time}`).toISOString(),
+            end: new Date(`${booking.date}T${booking.end_time}`).toISOString(),
             allDay: false,
           }));
           setEvents(mappedEvents);
@@ -41,6 +53,47 @@ export default function Calendar() {
 
     fetchBookings();
   }, []);
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authData),
+      });
+      if (response.ok) {
+        alert('Registration successful!');
+        setShowRegister(false);
+      } else {
+        const errorText = await response.text();
+        alert(`Registration failed: ${errorText}`);
+      }
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loginData),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        alert(`Login successful! API Key: ${data.api_key}`);
+        setShowLogin(false);
+      } else {
+        const errorText = await response.text();
+        alert(`Login failed: ${errorText}`);
+      }
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+  };
 
   const handleDateSelect = (selectInfo) => {
     setSelectedDate(selectInfo.startStr.split('T')[0]);
@@ -115,10 +168,98 @@ export default function Calendar() {
   return (
     <div>
       <div>
+        <button onClick={() => setShowRegister(true)}>Register</button>
+        <button onClick={() => setShowLogin(true)}>Login</button>
         <button onClick={() => changeView('dayGridMonth')}>Month View</button>
         <button onClick={() => changeView('timeGridWeek')}>Week View</button>
         <button onClick={() => changeView('timeGridDay')}>Day View</button>
       </div>
+
+      {/* Register Modal */}
+      {showRegister && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Register</h3>
+            <form onSubmit={handleRegister}>
+              <label>
+                Name:
+                <input
+                  type="text"
+                  required
+                  value={authData.name}
+                  onChange={(e) => setAuthData({ ...authData, name: e.target.value })}
+                />
+              </label>
+              <label>
+                Surname:
+                <input
+                  type="text"
+                  required
+                  value={authData.surname}
+                  onChange={(e) => setAuthData({ ...authData, surname: e.target.value })}
+                />
+              </label>
+              <label>
+                Email:
+                <input
+                  type="email"
+                  required
+                  value={authData.email}
+                  onChange={(e) => setAuthData({ ...authData, email: e.target.value })}
+                />
+              </label>
+              <label>
+                Password:
+                <input
+                  type="password"
+                  required
+                  value={authData.password}
+                  onChange={(e) => setAuthData({ ...authData, password: e.target.value })}
+                />
+              </label>
+              <div className="button-group">
+                <button type="submit">Register</button>
+                <button type="button" onClick={() => setShowRegister(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Login Modal */}
+      {showLogin && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Login</h3>
+            <form onSubmit={handleLogin}>
+              <label>
+                Email:
+                <input
+                  type="email"
+                  required
+                  value={loginData.email}
+                  onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                />
+              </label>
+              <label>
+                Password:
+                <input
+                  type="password"
+                  required
+                  value={loginData.password}
+                  onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                />
+              </label>
+              <div className="button-group">
+                <button type="submit">Login</button>
+                <button type="button" onClick={() => setShowLogin(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Calendar */}
       <div className={`calendar-container ${showForm ? 'disabled' : ''}`}>
         <FullCalendar
           ref={calendarRef}

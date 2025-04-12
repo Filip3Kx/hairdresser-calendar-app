@@ -18,9 +18,11 @@ func main() {
 	fmt.Println("Connected to database")
 	defer db.Close()
 
-	http.HandleFunc("/hello", helloHandler)
+	http.HandleFunc("/hello", helloHandler) //tester
 	http.HandleFunc("/bookings/create", createBookingHandler)
 	http.HandleFunc("/bookings/get", getBookingsHandler)
+	http.HandleFunc("/auth/register", registerUserHandler)
+	http.HandleFunc("/auth/login", loginUserHandler)
 
 	fmt.Println("Starting server on :5000")
 	if err := http.ListenAndServe(":5000", nil); err != nil {

@@ -11,10 +11,12 @@ CREATE TABLE bookings (
     CREATE TABLE users (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
+        surename TEXT,
         email TEXT NOT NULL,
         password TEXT NOT NULL,
+        api_key TEXT NOT NULL,
         is_admin BOOLEAN DEFAULT FALSE
     );
 
-    INSERT INTO users (name, email, password, is_admin) 
-    VALUES ('admin', 'admin@example.com', 'admin', TRUE);
+    INSERT INTO users (name, email, password, api_key, is_admin) 
+    VALUES ('admin', 'admin@example.com', 'admin', 'abacadaba', TRUE);
