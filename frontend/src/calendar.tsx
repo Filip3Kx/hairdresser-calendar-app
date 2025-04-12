@@ -5,6 +5,15 @@ import { useEffect, useState } from 'react';
 
 export default function Calendar() {
   const [events, setEvents] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [formData, setFormData] = useState({
+    startTime: '',
+    endTime: '',
+    name: '',
+    surname: '',
+    email: ''
+  });
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -15,18 +24,15 @@ export default function Calendar() {
         if (response.ok) {
           const bookings = await response.json();
           const mappedEvents = bookings.map((booking) => {
-            // Extract time (HH:MM) from start_time and end_time
-            const startTime = booking.start_time.split('T')[1].slice(0, 5); // Extract HH:MM
-            const endTime = booking.end_time.split('T')[1].slice(0, 5);     // Extract HH:MM
-
-            // Combine date with extracted time
+            const startTime = booking.start_time.split('T')[1].slice(0, 5);
+            const endTime = booking.end_time.split('T')[1].slice(0, 5);
             const start = `${booking.date.split('T')[0]}T${startTime}`;
             const end = `${booking.date.split('T')[0]}T${endTime}`;
 
             return {
               title: 'Taken',
-              start: new Date(start).toISOString(), // Convert to ISO 8601 format
-              end: new Date(end).toISOString(),     // Convert to ISO 8601 format
+              start: new Date(start).toISOString(),
+              end: new Date(end).toISOString(),
               allDay: false,
             };
           });
@@ -42,66 +48,71 @@ export default function Calendar() {
     fetchBookings();
   }, []);
 
-  const handleDateSelect = async (selectInfo) => {
-    const startTime = prompt('Enter the start time (HH:MM):');
-    const endTime = prompt('Enter the end time (HH:MM):');
-    const name = prompt('Enter your name:');
-    const surname = prompt('Enter your surname:');
-    const email = prompt('Enter your email:');
-  
+  const handleDateSelect = (selectInfo) => {
+    setSelectedDate(selectInfo.startStr.split('T')[0]);
+    setShowForm(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const { name, surname, email, startTime, endTime } = formData;
     if (!name || !surname || !email || !startTime || !endTime) {
-      alert('All fields are required to create a booking.');
+      alert('All fields are required');
       return;
     }
-  
-    const selectedDate = selectInfo.startStr.split('T')[0];
+
     const newStart = new Date(`${selectedDate}T${startTime}`);
     const newEnd = new Date(`${selectedDate}T${endTime}`);
+    
     if (isNaN(newStart.getTime())) {
-      alert('Invalid start time format. Use HH:MM.');
+      alert('Invalid start time format');
       return;
     }
     if (isNaN(newEnd.getTime())) {
-      alert('Invalid end time format. Use HH:MM.');
+      alert('Invalid end time format');
       return;
     }
     if (newStart >= newEnd) {
-      alert('End time must be after start time.');
+      alert('End time must be after start time');
       return;
     }
+
     const sameDayEvents = events.filter(event => {
       const eventStart = new Date(event.start);
       return eventStart.toLocaleDateString('en-CA') === selectedDate;
     });
+
     const hasConflict = sameDayEvents.some(event => {
       const eventStart = new Date(event.start);
       const eventEnd = new Date(event.end);
       return newStart < eventEnd && newEnd > eventStart;
     });
+
     if (hasConflict) {
-      alert('This time slot conflicts with an existing appointment.');
+      alert('This time slot conflicts with an existing appointment');
       return;
     }
-  
-    // Proceed to create booking
+
     const booking = {
       name,
       surname,
       email,
-      date: selectInfo.startStr,
+      date: selectedDate,
       start_time: startTime,
       end_time: endTime,
     };
-  
+
     try {
       const response = await fetch('/bookings/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(booking),
       });
-  
+
       if (response.ok) {
         alert('Booking created!');
+        setShowForm(false);
         window.location.reload();
       } else {
         const errorText = await response.text();
@@ -113,30 +124,169 @@ export default function Calendar() {
   };
 
   return (
-    <FullCalendar
-      plugins={[dayGridPlugin, interactionPlugin]}
-      initialView="dayGridMonth"
-      selectable={true}
-      events={events}
-      select={handleDateSelect}
-      eventContent={(eventInfo) => {
-        const startTime = new Date(eventInfo.event.start).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-        const endTime = new Date(eventInfo.event.end).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
+    <div>
+      <div className={`calendar-container ${showForm ? 'disabled' : ''}`}>
+        <FullCalendar
+          plugins={[dayGridPlugin, interactionPlugin]}
+          initialView="dayGridMonth"
+          selectable={!showForm}
+          editable={!showForm}
+          events={events}
+          select={handleDateSelect}
+          eventContent={(eventInfo) => {
+            const startTime = new Date(eventInfo.event.start).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+            const endTime = new Date(eventInfo.event.end).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
 
-        return (
-          <div>
-            <span style={{ color: eventInfo.event.backgroundColor || 'red' }}>●</span>{' '}
-            <b>{startTime} - {endTime}</b> {/* Custom time range */}
-            <span> {eventInfo.event.title}</span> {/* Event title */}
+            return (
+              <div>
+                <span style={{ color: eventInfo.event.backgroundColor || 'red' }}>●</span>{' '}
+                <b>{startTime} - {endTime}</b>
+                <span> {eventInfo.event.title}</span>
+              </div>
+            );
+          }}
+        />
+      </div>
+
+      {showForm && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Create Appointment for {selectedDate}</h3>
+            <form onSubmit={handleSubmit}>
+              <label>
+                Start Time:
+                <input
+                  type="time"
+                  required
+                  value={formData.startTime}
+                  onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                />
+              </label>
+              
+              <label>
+                End Time:
+                <input
+                  type="time"
+                  required
+                  value={formData.endTime}
+                  onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                />
+              </label>
+              
+              <label>
+                Name:
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </label>
+              
+              <label>
+                Surname:
+                <input
+                  type="text"
+                  required
+                  value={formData.surname}
+                  onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
+                />
+              </label>
+              
+              <label>
+                Email:
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </label>
+              
+              <div className="button-group">
+                <button type="submit">Create Booking</button>
+                <button type="button" onClick={() => setShowForm(false)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
-        );
-      }}
-    />
+        </div>
+      )}
+
+      <style jsx>{`
+        .calendar-container.disabled {
+          pointer-events: none;
+          opacity: 0.5;
+        }
+        
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+        }
+        
+        .modal-content {
+          background: white;
+          padding: 2rem;
+          border-radius: 8px;
+          width: 90%;
+          max-width: 500px;
+        }
+        
+        form {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        
+        label {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        
+        input {
+          padding: 0.5rem;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+        }
+        
+        .button-group {
+          display: flex;
+          gap: 1rem;
+          margin-top: 1rem;
+        }
+        
+        button {
+          padding: 0.5rem 1rem;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        
+        button[type='submit'] {
+          background: #0070f3;
+          color: white;
+        }
+        
+        button[type='button'] {
+          background: #ccc;
+        }
+      `}</style>
+    </div>
   );
 }
