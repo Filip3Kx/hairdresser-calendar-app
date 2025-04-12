@@ -13,10 +13,9 @@ export default function Calendar() {
     endTime: '',
     name: '',
     surname: '',
-    email: ''
+    email: '',
   });
 
-  // Ref to the FullCalendar instance
   const calendarRef = useRef(null);
 
   useEffect(() => {
@@ -25,19 +24,12 @@ export default function Calendar() {
         const response = await fetch('/bookings/get', { method: 'GET' });
         if (response.ok) {
           const bookings = await response.json();
-          const mappedEvents = bookings.map((booking) => {
-            const startTime = booking.start_time.split('T')[1].slice(0, 5);
-            const endTime = booking.end_time.split('T')[1].slice(0, 5);
-            const start = `${booking.date.split('T')[0]}T${startTime}`;
-            const end = `${booking.date.split('T')[0]}T${endTime}`;
-
-            return {
-              title: 'Taken',
-              start: new Date(start).toISOString(),
-              end: new Date(end).toISOString(),
-              allDay: false,
-            };
-          });
+          const mappedEvents = bookings.map((booking) => ({
+            title: 'Taken',
+            start: new Date(`${booking.date.split('T')[0]}T${booking.start_time.split('T')[1].slice(0, 5)}`).toISOString(),
+            end: new Date(`${booking.date.split('T')[0]}T${booking.end_time.split('T')[1].slice(0, 5)}`).toISOString(),
+            allDay: false,
+          }));
           setEvents(mappedEvents);
         } else {
           console.error('Failed to fetch bookings');
@@ -67,28 +59,24 @@ export default function Calendar() {
     const newStart = new Date(`${selectedDate}T${startTime}`);
     const newEnd = new Date(`${selectedDate}T${endTime}`);
 
-    if (isNaN(newStart.getTime())) {
-      alert('Invalid start time format');
+    if (isNaN(newStart.getTime()) || isNaN(newEnd.getTime())) {
+      alert('Invalid time format');
       return;
     }
-    if (isNaN(newEnd.getTime())) {
-      alert('Invalid end time format');
-      return;
-    }
+
     if (newStart >= newEnd) {
       alert('End time must be after start time');
       return;
     }
 
-    const sameDayEvents = events.filter(event => {
-      const eventStart = new Date(event.start);
-      return eventStart.toLocaleDateString('en-CA') === selectedDate;
-    });
-
-    const hasConflict = sameDayEvents.some(event => {
+    const hasConflict = events.some((event) => {
       const eventStart = new Date(event.start);
       const eventEnd = new Date(event.end);
-      return newStart < eventEnd && newEnd > eventStart;
+      return (
+        eventStart.toLocaleDateString('en-CA') === selectedDate &&
+        newStart < eventEnd &&
+        newEnd > eventStart
+      );
     });
 
     if (hasConflict) {
@@ -96,14 +84,7 @@ export default function Calendar() {
       return;
     }
 
-    const booking = {
-      name,
-      surname,
-      email,
-      date: selectedDate,
-      start_time: startTime,
-      end_time: endTime,
-    };
+    const booking = { name, surname, email, date: selectedDate, start_time: startTime, end_time: endTime };
 
     try {
       const response = await fetch('/bookings/create', {
@@ -125,35 +106,31 @@ export default function Calendar() {
     }
   };
 
-  // Function to handle view change
   const changeView = (view) => {
     if (calendarRef.current) {
-      const calendarApi = calendarRef.current.getApi();
-      calendarApi.changeView(view);
+      calendarRef.current.getApi().changeView(view);
     }
   };
 
   return (
     <div>
+      <div>
+        <button onClick={() => changeView('dayGridMonth')}>Month View</button>
+        <button onClick={() => changeView('timeGridWeek')}>Week View</button>
+        <button onClick={() => changeView('timeGridDay')}>Day View</button>
+      </div>
       <div className={`calendar-container ${showForm ? 'disabled' : ''}`}>
         <FullCalendar
-          ref={calendarRef} // Attach the ref to FullCalendar
+          ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth" // Set initial view
+          initialView="dayGridMonth"
           selectable={!showForm}
           editable={!showForm}
           events={events}
           select={handleDateSelect}
           eventContent={(eventInfo) => {
-            const startTime = new Date(eventInfo.event.start).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            });
-            const endTime = new Date(eventInfo.event.end).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            });
-
+            const startTime = new Date(eventInfo.event.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const endTime = new Date(eventInfo.event.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             return (
               <div>
                 <span style={{ color: eventInfo.event.backgroundColor || 'red' }}>●</span>{' '}
@@ -163,13 +140,6 @@ export default function Calendar() {
             );
           }}
         />
-      </div>
-
-      {/* View buttons */}
-      <div>
-        <button onClick={() => changeView('dayGridMonth')}>Month View</button>
-        <button onClick={() => changeView('timeGridWeek')}>Week View</button>
-        <button onClick={() => changeView('timeGridDay')}>Day View</button>
       </div>
 
       {showForm && (
@@ -186,7 +156,6 @@ export default function Calendar() {
                   onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
                 />
               </label>
-
               <label>
                 End Time:
                 <input
@@ -196,7 +165,6 @@ export default function Calendar() {
                   onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
                 />
               </label>
-
               <label>
                 Name:
                 <input
@@ -206,7 +174,6 @@ export default function Calendar() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </label>
-
               <label>
                 Surname:
                 <input
@@ -216,7 +183,6 @@ export default function Calendar() {
                   onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
                 />
               </label>
-
               <label>
                 Email:
                 <input
@@ -226,12 +192,9 @@ export default function Calendar() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </label>
-
               <div className="button-group">
                 <button type="submit">Create Booking</button>
-                <button type="button" onClick={() => setShowForm(false)}>
-                  Cancel
-                </button>
+                <button type="button" onClick={() => setShowForm(false)}>Cancel</button>
               </div>
             </form>
           </div>
@@ -243,7 +206,6 @@ export default function Calendar() {
           pointer-events: none;
           opacity: 0.5;
         }
-
         .modal-overlay {
           position: fixed;
           top: 0;
@@ -256,7 +218,6 @@ export default function Calendar() {
           align-items: center;
           z-index: 1000;
         }
-
         .modal-content {
           background: white;
           padding: 2rem;
@@ -264,43 +225,36 @@ export default function Calendar() {
           width: 90%;
           max-width: 500px;
         }
-
         form {
           display: flex;
           flex-direction: column;
           gap: 1rem;
         }
-
         label {
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
         }
-
         input {
           padding: 0.5rem;
           border: 1px solid #ccc;
           border-radius: 4px;
         }
-
         .button-group {
           display: flex;
           gap: 1rem;
           margin-top: 1rem;
         }
-
         button {
           padding: 0.5rem 1rem;
           border: none;
           border-radius: 4px;
           cursor: pointer;
         }
-
         button[type='submit'] {
           background: #0070f3;
           color: white;
         }
-
         button[type='button'] {
           background: #ccc;
         }
