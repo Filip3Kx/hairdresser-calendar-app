@@ -1,7 +1,8 @@
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 export default function Calendar() {
   const [events, setEvents] = useState([]);
@@ -15,12 +16,13 @@ export default function Calendar() {
     email: ''
   });
 
+  // Ref to the FullCalendar instance
+  const calendarRef = useRef(null);
+
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const response = await fetch('/bookings/get', {
-          method: 'GET',
-        });
+        const response = await fetch('/bookings/get', { method: 'GET' });
         if (response.ok) {
           const bookings = await response.json();
           const mappedEvents = bookings.map((booking) => {
@@ -55,7 +57,7 @@ export default function Calendar() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const { name, surname, email, startTime, endTime } = formData;
     if (!name || !surname || !email || !startTime || !endTime) {
       alert('All fields are required');
@@ -64,7 +66,7 @@ export default function Calendar() {
 
     const newStart = new Date(`${selectedDate}T${startTime}`);
     const newEnd = new Date(`${selectedDate}T${endTime}`);
-    
+
     if (isNaN(newStart.getTime())) {
       alert('Invalid start time format');
       return;
@@ -123,12 +125,21 @@ export default function Calendar() {
     }
   };
 
+  // Function to handle view change
+  const changeView = (view) => {
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
+      calendarApi.changeView(view);
+    }
+  };
+
   return (
     <div>
       <div className={`calendar-container ${showForm ? 'disabled' : ''}`}>
         <FullCalendar
-          plugins={[dayGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
+          ref={calendarRef} // Attach the ref to FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          initialView="dayGridMonth" // Set initial view
           selectable={!showForm}
           editable={!showForm}
           events={events}
@@ -154,6 +165,13 @@ export default function Calendar() {
         />
       </div>
 
+      {/* View buttons */}
+      <div>
+        <button onClick={() => changeView('dayGridMonth')}>Month View</button>
+        <button onClick={() => changeView('timeGridWeek')}>Week View</button>
+        <button onClick={() => changeView('timeGridDay')}>Day View</button>
+      </div>
+
       {showForm && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -168,7 +186,7 @@ export default function Calendar() {
                   onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
                 />
               </label>
-              
+
               <label>
                 End Time:
                 <input
@@ -178,7 +196,7 @@ export default function Calendar() {
                   onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
                 />
               </label>
-              
+
               <label>
                 Name:
                 <input
@@ -188,7 +206,7 @@ export default function Calendar() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </label>
-              
+
               <label>
                 Surname:
                 <input
@@ -198,7 +216,7 @@ export default function Calendar() {
                   onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
                 />
               </label>
-              
+
               <label>
                 Email:
                 <input
@@ -208,7 +226,7 @@ export default function Calendar() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </label>
-              
+
               <div className="button-group">
                 <button type="submit">Create Booking</button>
                 <button type="button" onClick={() => setShowForm(false)}>
@@ -225,7 +243,7 @@ export default function Calendar() {
           pointer-events: none;
           opacity: 0.5;
         }
-        
+
         .modal-overlay {
           position: fixed;
           top: 0;
@@ -238,7 +256,7 @@ export default function Calendar() {
           align-items: center;
           z-index: 1000;
         }
-        
+
         .modal-content {
           background: white;
           padding: 2rem;
@@ -246,43 +264,43 @@ export default function Calendar() {
           width: 90%;
           max-width: 500px;
         }
-        
+
         form {
           display: flex;
           flex-direction: column;
           gap: 1rem;
         }
-        
+
         label {
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
         }
-        
+
         input {
           padding: 0.5rem;
           border: 1px solid #ccc;
           border-radius: 4px;
         }
-        
+
         .button-group {
           display: flex;
           gap: 1rem;
           margin-top: 1rem;
         }
-        
+
         button {
           padding: 0.5rem 1rem;
           border: none;
           border-radius: 4px;
           cursor: pointer;
         }
-        
+
         button[type='submit'] {
           background: #0070f3;
           color: white;
         }
-        
+
         button[type='button'] {
           background: #ccc;
         }
