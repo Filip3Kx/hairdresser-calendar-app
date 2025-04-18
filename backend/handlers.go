@@ -52,12 +52,27 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
+	logedIn := false
+	id := "-1"
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	apiKey := r.Header.Get("Authorization")
+	if apiKey != "" {
+		if valid, _ := validateAPIKey(apiKey); !valid {
+			http.Error(w, "Invalid API key", http.StatusUnauthorized)
+			return
+		}
+		logedIn = true
+		err := db.QueryRow("SELECT id FROM users WHERE api_key = $1", apiKey).Scan(&id)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to fetch user ID: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
 
-	rows, err := db.Query("SELECT date, start_time, end_time FROM bookings")
+	rows, err := db.Query("SELECT date, start_time, end_time, user_id, users.api_key FROM bookings LEFT JOIN users ON bookings.user_id=users.id")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to fetch bookings: %v", err), http.StatusInternalServerError)
 		return
@@ -66,16 +81,20 @@ func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
 
 	var bookings []map[string]string
 	for rows.Next() {
-		var date, startTime, endTime string
-		if err := rows.Scan(&date, &startTime, &endTime); err != nil {
+		var date, startTime, endTime, userId, apiKey sql.NullString
+		if err := rows.Scan(&date, &startTime, &endTime, &userId, &apiKey); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to parse bookings: %v", err), http.StatusInternalServerError)
 			return
 		}
-		bookings = append(bookings, map[string]string{
-			"date":       date,
-			"start_time": startTime,
-			"end_time":   endTime,
-		})
+		booking := map[string]string{
+			"date":       date.String,
+			"start_time": startTime.String,
+			"end_time":   endTime.String,
+		}
+		if userId.Valid && logedIn && id == userId.String {
+			booking["user_id"] = userId.String
+		}
+		bookings = append(bookings, booking)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

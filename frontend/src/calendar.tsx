@@ -41,7 +41,12 @@ export default function Calendar() {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const response = await fetch('/bookings/get', { method: 'GET' });
+        const response = await fetch('/bookings/get', { 
+          method: 'GET',
+          headers: {
+            'Authorization': `${Cookies.get('apiKey') || ''}`
+          }
+        });
         if (response.ok) {
           const bookings = await response.json();
           const mappedEvents = bookings.map((booking) => ({
@@ -95,6 +100,7 @@ export default function Calendar() {
         alert(`Login successful!`);
         Cookies.set('apiKey', data.api_key, { expires: 7 });
         setShowLogin(false);
+        window.location.reload();
       } else {
         const errorText = await response.text();
         alert(`Login failed: ${errorText}`);
@@ -152,7 +158,7 @@ export default function Calendar() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `${apiKey}`, // Include API key in the headers
+          'Authorization': `${apiKey || ''}`, // Include API key in the headers
         },
         body: JSON.stringify(booking),
       });
