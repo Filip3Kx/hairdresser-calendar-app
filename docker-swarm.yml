@@ -1,0 +1,37 @@
+networks:
+  calendar_app_network:
+    name: calendar_app_network
+
+services:
+  frontend:
+    image: calendar_app_frontend
+    ports:
+      - "3000:80"
+    networks:
+      - calendar_app_network
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: calendar_app
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - calendar_app_network
+
+  backend:
+    image: calendar_app_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/calendar_app?sslmode=disable
+    depends_on:
+      - db
+    networks:
+      - calendar_app_network

@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -15,6 +17,15 @@ func generateAPIKey() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(key), nil
+}
+
+func validateAPIKey(apiKey string) (bool, error) {
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM users WHERE api_key = $1", apiKey).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to validate API key: %v", err)
+	}
+	return count > 0, nil
 }
 
 func encryptPassword(password string) (string, error) {
@@ -33,15 +44,6 @@ func decryptPassword(encryptedPassword, password string) error {
 	return nil
 }
 
-func validateAPIKey(apiKey string) (bool, error) {
-	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM users WHERE api_key = $1", apiKey).Scan(&count)
-	if err != nil {
-		return false, fmt.Errorf("failed to validate API key: %v", err)
-	}
-	return count > 0, nil
-}
-
 func validateUserExistence(email string) (bool, error) {
 	var exists bool
 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email).Scan(&exists)
@@ -49,4 +51,36 @@ func validateUserExistence(email string) (bool, error) {
 		return false, fmt.Errorf("failed to check user existence: %v", err)
 	}
 	return exists, nil
+}
+
+func waitForDbConnection() {
+	for {
+		err := db.Ping()
+		if err == nil {
+			break
+		}
+		fmt.Println("Waiting for database connection...")
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func createAdminUser() {
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = 'admin@example.com')").Scan(&exists)
+	if err != nil {
+		panic(err)
+	}
+	if !exists {
+		apiKey, err := generateAPIKey()
+		if err != nil {
+			panic(err)
+		}
+		_, err = db.Exec("INSERT INTO users (name, surename, email, password, api_key, is_admin) VALUES ('admin', 'admin', 'admin@example.com', 'admin', $1, TRUE)", apiKey)
+		if err != nil {
+			panic(err)
+		}
+		log.Println("Admin user created")
+	} else {
+		log.Println("Admin user already exists")
+	}
 }

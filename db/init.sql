@@ -8,9 +8,6 @@ CREATE TABLE users (
     is_admin BOOLEAN DEFAULT FALSE
 );
 
-INSERT INTO users (name, email, password, api_key, is_admin) 
-VALUES ('admin', 'admin@example.com', 'admin', 'abacadaba', TRUE);
-
 CREATE TABLE bookings (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,

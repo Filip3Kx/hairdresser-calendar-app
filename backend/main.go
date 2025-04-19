@@ -18,9 +18,14 @@ func main() {
 	fmt.Println("Connected to database")
 	defer db.Close()
 
+	waitForDbConnection()
+	createAdminUser()
+
 	http.HandleFunc("/hello", helloHandler) //tester
 	http.HandleFunc("/bookings/create", createBookingHandler)
 	http.HandleFunc("/bookings/get", getBookingsHandler)
+	http.HandleFunc("/bookings/edit", editBookingHandler)
+	http.HandleFunc("/bookings/delete", deleteBookingHandler)
 	http.HandleFunc("/auth/register", registerUserHandler)
 	http.HandleFunc("/auth/login", loginUserHandler)
 

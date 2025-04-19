@@ -1,0 +1,132 @@
+:root {
+  --primary-orange: #FFA500;
+  --primary-gray: #666666;
+  --secondary-gray: #999999;
+  --background-white: #FFFFFF;
+  --text-black: #000000;
+}
+
+body {
+  margin: 0;
+  padding: 20px;
+  background-color: var(--background-white);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.calendar-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: var(--background-white);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin: 0 4px;
+  transition: all 0.2s ease;
+}
+
+.auth-buttons {
+  margin-bottom: 20px;
+}
+
+.auth-buttons button {
+  background-color: var(--primary-orange);
+  color: var(--background-white);
+}
+
+.auth-buttons button:hover {
+  background-color: #FF8C00;
+}
+
+.calendar-buttons button {
+  background-color: var(--primary-gray);
+  color: var(--background-white);
+}
+
+.calendar-buttons button:hover {
+  background-color: var(--secondary-gray);
+}
+
+.form-container {
+  background-color: var(--background-white);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 20px 0;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--primary-gray);
+}
+
+input, select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--secondary-gray);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary-orange);
+  box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.2);
+}
+
+.alert {
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+.alert-success {
+  background-color: #E6FFE6;
+  color: #006400;
+}
+
+.alert-error {
+  background-color: #FFE6E6;
+  color: #8B0000;
+}
+
+.fc-theme-standard .fc-scrollgrid {
+  border-color: var(--secondary-gray);
+}
+
+.fc-theme-standard td {
+  border-color: var(--secondary-gray);
+}
+
+.fc-theme-standard th {
+  border-color: var(--secondary-gray);
+}
+
+.fc-daygrid-day-number {
+  color: var(--primary-gray);
+}
+
+/* Removed .fc-daygrid-day-events styling to prevent orange bars across calendar rows */
+
+.fc-button-primary {
+  background-color: var(--primary-orange) !important;
+  border-color: var(--primary-orange) !important;
+  color: var(--background-white) !important;
+}
+
+.fc-button-primary:hover {
+  background-color: #FF8C00 !important;
+  border-color: #FF8C00 !important;
+}

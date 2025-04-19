@@ -1,9 +1,11 @@
+import React from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useEffect, useState, useRef } from 'react';
 import Cookies from 'js-cookie';
+import './styles.css';
 
 export default function Calendar() {
   const [events, setEvents] = useState([]);
@@ -50,7 +52,7 @@ export default function Calendar() {
         if (response.ok) {
           const bookings = await response.json();
           const mappedEvents = bookings.map((booking) => ({
-            title: 'Taken',
+            title: booking.user_id ? 'Your booking' : 'Taken',
             start: new Date(`${booking.date.split('T')[0]}T${booking.start_time.split('T')[1].slice(0, 5)}`).toISOString(),
             end: new Date(`${booking.date.split('T')[0]}T${booking.end_time.split('T')[1].slice(0, 5)}`).toISOString(),
             allDay: false,
@@ -184,8 +186,8 @@ export default function Calendar() {
   const isLoggedIn = !!Cookies.get('apiKey'); // Check if the user is logged in
 
   return (
-    <div>
-      <div>
+    <div className="calendar-container">
+      <div className="auth-buttons">
         {!isLoggedIn ? (
           <>
             <button onClick={() => setShowRegister(true)}>Register</button>
@@ -196,6 +198,8 @@ export default function Calendar() {
             <button onClick={handleLogout}>Logout</button>
           </>
         )}
+      </div>
+      <div className="calendar-buttons">
         <button onClick={() => changeView('dayGridMonth')}>Month View</button>
         <button onClick={() => changeView('timeGridWeek')}>Week View</button>
         <button onClick={() => changeView('timeGridDay')}>Day View</button>
@@ -313,57 +317,81 @@ export default function Calendar() {
         <div className="modal-overlay">
           <div className="modal-content">
             <h3>Create Appointment for {selectedDate}</h3>
-            <form onSubmit={handleSubmit}>
-              <label>
-                Start Time:
-                <input
-                  type="time"
-                  required
-                  value={formData.startTime}
-                  onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                />
-              </label>
-              <label>
-                End Time:
-                <input
-                  type="time"
-                  required
-                  value={formData.endTime}
-                  onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                />
-              </label>
-              <label>
-                Name:
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </label>
-              <label>
-                Surname:
-                <input
-                  type="text"
-                  required
-                  value={formData.surname}
-                  onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
-                />
-              </label>
-              <label>
-                Email:
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-              </label>
-              <div className="button-group">
-                <button type="submit">Create Booking</button>
-                <button type="button" onClick={() => setShowForm(false)}>Cancel</button>
-              </div>
-            </form>
+            <div className="form-container">
+              <form onSubmit={handleSubmit}>
+                <div className="form-group">
+                  <label>Start Time:</label>
+                  <select
+                    value={formData.startTime}
+                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                    required
+                  >
+                    <option value="">Select start time</option>
+                    <option value="08:00">08:00 AM</option>
+                    <option value="09:00">09:00 AM</option>
+                    <option value="10:00">10:00 AM</option>
+                    <option value="11:00">11:00 AM</option>
+                    <option value="12:00">12:00 PM</option>
+                    <option value="13:00">01:00 PM</option>
+                    <option value="14:00">02:00 PM</option>
+                    <option value="15:00">03:00 PM</option>
+                    <option value="16:00">04:00 PM</option>
+                    <option value="17:00">05:00 PM</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>End Time:</label>
+                  <select
+                    value={formData.endTime}
+                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                    required
+                  >
+                    <option value="">Select end time</option>
+                    <option value="09:00">09:00 AM</option>
+                    <option value="10:00">10:00 AM</option>
+                    <option value="11:00">11:00 AM</option>
+                    <option value="12:00">12:00 PM</option>
+                    <option value="13:00">01:00 PM</option>
+                    <option value="14:00">02:00 PM</option>
+                    <option value="15:00">03:00 PM</option>
+                    <option value="16:00">04:00 PM</option>
+                    <option value="17:00">05:00 PM</option>
+                    <option value="18:00">06:00 PM</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Name:</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Surname:</label>
+                  <input
+                    type="text"
+                    value={formData.surname}
+                    onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Email:</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="button-group">
+                  <button type="submit" className="submit-button">Submit</button>
+                  <button type="button" onClick={() => setShowForm(false)} className="cancel-button">Cancel</button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

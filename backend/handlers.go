@@ -51,6 +51,14 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func editBookingHandler(w http.ResponseWriter, r *http.Request) {
+	print(1)
+}
+
+func deleteBookingHandler(w http.ResponseWriter, r *http.Request) {
+	print(1)
+}
+
 func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
 	logedIn := false
 	id := "-1"
