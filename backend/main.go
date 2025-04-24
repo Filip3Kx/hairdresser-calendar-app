@@ -28,6 +28,8 @@ func main() {
 	http.HandleFunc("/bookings/delete", deleteBookingHandler)
 	http.HandleFunc("/auth/register", registerUserHandler)
 	http.HandleFunc("/auth/login", loginUserHandler)
+	http.HandleFunc("/auth/check", checkUserPermissionHandler)
+	http.HandleFunc("/auth/userinfo", getUserInfoHandler)
 
 	fmt.Println("Starting server on :5000")
 	if err := http.ListenAndServe(":5000", nil); err != nil {

@@ -18,3 +18,12 @@ CREATE TABLE bookings (
     end_time TIME NOT NULL,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
+
+CREATE TABLE appinfo (
+    id SERIAL PRIMARY KEY,
+    is_configured BOOLEAN DEFAULT FALSE,
+    opening_hours_start TIME,
+    opening_hours_end TIME,
+    business_name TEXT
+);
+    

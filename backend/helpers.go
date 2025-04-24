@@ -71,11 +71,15 @@ func createAdminUser() {
 		panic(err)
 	}
 	if !exists {
+		hashedPassword, err := encryptPassword("admin")
+		if err != nil {
+			panic(err)
+		}
 		apiKey, err := generateAPIKey()
 		if err != nil {
 			panic(err)
 		}
-		_, err = db.Exec("INSERT INTO users (name, surename, email, password, api_key, is_admin) VALUES ('admin', 'admin', 'admin@example.com', 'admin', $1, TRUE)", apiKey)
+		_, err = db.Exec("INSERT INTO users (name, surename, email, password, api_key, is_admin) VALUES ('admin', 'admin', 'admin@example.com', $1, $2, TRUE)", hashedPassword, apiKey)
 		if err != nil {
 			panic(err)
 		}
@@ -83,4 +87,13 @@ func createAdminUser() {
 	} else {
 		log.Println("Admin user already exists")
 	}
+}
+
+func validateAdmin(apiKey string) (bool, error) {
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM users WHERE api_key = $1 AND is_admin = TRUE", apiKey).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to validate admin: %v", err)
+	}
+	return count > 0, nil
 }

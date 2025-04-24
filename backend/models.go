@@ -10,6 +10,12 @@ type Booking struct {
 	UserId    int    `json:"user_id"`
 }
 
+type DeleteQuery struct {
+	Date      string `json:"date"`
+	StartTime string `json:"start_time"`
+	EndTime   string `json:"end_time"`
+}
+
 type User struct {
 	Name     string `json:"name"`
 	Surename string `json:"surname"`

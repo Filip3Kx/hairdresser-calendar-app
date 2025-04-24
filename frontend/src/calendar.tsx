@@ -8,6 +8,8 @@ import Cookies from 'js-cookie';
 import './styles.css';
 
 export default function Calendar() {
+  const [adminModal, setAdminModal] = useState({ show: false, event: null });
+  const [editData, setEditData] = useState(null);
   const [events, setEvents] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
@@ -20,6 +22,32 @@ export default function Calendar() {
     surname: '',
     email: '',
   });
+
+  // Autofill booking form with user info when form opens and user is logged in
+  useEffect(() => {
+    const apiKey = Cookies.get('apiKey');
+    if (showForm && apiKey) {
+      fetch('/auth/userinfo', {
+        method: 'GET',
+        headers: {
+          'Authorization': apiKey
+        }
+      })
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to fetch user info');
+          return res.json();
+        })
+        .then(data => {
+          setFormData(prev => ({
+            ...prev,
+            name: data.name || '',
+            surname: data.surname || '',
+            email: data.email || ''
+          }));
+        })
+        .catch(() => {});
+    }
+  }, [showForm]);
   const [authData, setAuthData] = useState({
     name: '',
     surname: '',
@@ -30,15 +58,7 @@ export default function Calendar() {
     email: '',
     password: '',
   });
-
   const calendarRef = useRef(null);
-
-  useEffect(() => {
-    const storedApiKey = Cookies.get('apiKey');
-    if (storedApiKey) {
-      console.log('API Key loaded from cookie:', storedApiKey);
-    }
-  }, []);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -102,7 +122,6 @@ export default function Calendar() {
         alert(`Login successful!`);
         Cookies.set('apiKey', data.api_key, { expires: 7 });
         setShowLogin(false);
-        window.location.reload();
       } else {
         const errorText = await response.text();
         alert(`Login failed: ${errorText}`);
@@ -110,10 +129,25 @@ export default function Calendar() {
     } catch (error) {
       alert(`Error: ${error.message}`);
     }
+    try {
+      const response = await fetch('/auth/check', {
+        method: 'GET',
+        headers: { 'Authorization': `${Cookies.get('apiKey') || ''}` },
+      });
+      if (response.ok) {
+        Cookies.set('isAdmin', `${Cookies.get('apiKey')}`)        
+      } else {
+        Cookies.set('isAdmin', '');
+      }
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
+    window.location.reload();
   };
 
   const handleLogout = () => {
     Cookies.remove('apiKey');
+    Cookies.remove('isAdmin');
     alert('Logged out successfully!');
     window.location.reload();
   };
@@ -310,8 +344,70 @@ export default function Calendar() {
               </div>
             );
           }}
+          eventClick={(info) => {
+            const isAdmin = !!Cookies.get('isAdmin');
+            if (isAdmin) {
+              info.jsEvent.preventDefault();
+              setAdminModal({ show: true, event: info.event });
+            }
+          }}
         />
       </div>
+
+      {/* Admin Edit/Delete Modal */}
+      {adminModal.show && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Edit or Delete Booking</h3>
+            <div>
+              <p><b>Title:</b> {adminModal.event.title}</p>
+              <p><b>Start:</b> {adminModal.event.start?.toLocaleString()}</p>
+              <p><b>End:</b> {adminModal.event.end?.toLocaleString()}</p>
+            </div>
+            <div className="button-group">
+              <button onClick={() => {
+                // Example: populate edit form data
+                setEditData({
+                  title: adminModal.event.title,
+                  start: adminModal.event.start,
+                  end: adminModal.event.end,
+                  // Add more fields as needed
+                });
+                setAdminModal({ show: false, event: null });
+                setShowForm(true); // Could be a dedicated edit modal
+              }}>Edit</button>
+              <button onClick={async () => {
+                // Example: delete booking logic
+                // You would need to know the booking id, here we assume event.id
+                if (window.confirm('Are you sure you want to delete this booking?')) {
+                  try {
+                    const apiKey = Cookies.get('apiKey');
+                    const response = await fetch('/bookings/delete', {
+                      method: 'POST',
+                      headers: { 'Authorization': `${apiKey || ''}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        date: adminModal.event.startStr.slice(0, 10),
+                        start_time: adminModal.event.startStr.slice(11, 16),
+                        end_time: adminModal.event.endStr.slice(11, 16)
+                      })
+                    });
+                    if (response.ok) {
+                      setAdminModal({ show: false, event: null });
+                      window.location.reload();
+                    } else {
+                      const errorText = await response.text();
+                      alert(`Failed: ${errorText}`);
+                    }
+                  } catch (e) {
+                    alert('Failed to delete booking');
+                  }
+                }
+              }}>Delete</button>
+              <button onClick={() => setAdminModal({ show: false, event: null })}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="modal-overlay">

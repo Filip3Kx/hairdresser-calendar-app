@@ -14,9 +14,9 @@ Co działa.
 - Logowanie i rejestracja
 - Użytkownik może dodawać bookingi jako zalogowany i anonimowy (API Key)
 - Wyświetlanie własnych bookingów
+- Wypełnienie danych na podstawie zalogowanego usera
 
 Do zrobienia
-- Wypełnienie danych na podstawie zalogowanego usera
 - Administrator
 - SMTP
 

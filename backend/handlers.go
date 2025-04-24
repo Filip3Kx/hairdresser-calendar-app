@@ -52,11 +52,77 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func editBookingHandler(w http.ResponseWriter, r *http.Request) {
-	print(1)
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	apiKey := r.Header.Get("Authorization")
+	if apiKey != "" {
+		if valid, _ := validateAPIKey(apiKey); !valid {
+			http.Error(w, "Invalid API key", http.StatusUnauthorized)
+			return
+		}
+	}
+	isAdmin, err := validateAdmin(apiKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to validate admin: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if !isAdmin {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var b Booking
+	err = json.NewDecoder(r.Body).Decode(&b)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	_, err = db.Exec("UPDATE bookings SET name = $1, surename = $2, email = $3, date = $4, start_time = $5, end_time = $6 WHERE user_id = $7", b.Name, b.Surename, b.Email, b.Date, b.StartTime, b.EndTime, b.UserId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update booking: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func deleteBookingHandler(w http.ResponseWriter, r *http.Request) {
-	print(1)
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	apiKey := r.Header.Get("Authorization")
+	if apiKey != "" {
+		if valid, _ := validateAPIKey(apiKey); !valid {
+			http.Error(w, "Invalid API key", http.StatusUnauthorized)
+			return
+		}
+	}
+	isAdmin, err := validateAdmin(apiKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to validate admin: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if !isAdmin {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var d DeleteQuery
+	err = json.NewDecoder(r.Body).Decode(&d)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	_, err = db.Exec("DELETE FROM bookings WHERE date = $1 AND start_time = $2 AND end_time = $3", d.Date, d.StartTime, d.EndTime)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to delete booking: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
@@ -189,4 +255,51 @@ func loginUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"api_key": apiKey})
+}
+
+func checkUserPermissionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	apiKey := r.Header.Get("Authorization")
+	if apiKey != "" {
+		if valid, _ := validateAPIKey(apiKey); !valid {
+			http.Error(w, "Invalid API key", http.StatusUnauthorized)
+			return
+		}
+	}
+	isAdmin, err := validateAdmin(apiKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to validate admin: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if !isAdmin {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func getUserInfoHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	apiKey := r.Header.Get("Authorization")
+	if apiKey != "" {
+		if valid, _ := validateAPIKey(apiKey); !valid {
+			http.Error(w, "Invalid API key", http.StatusUnauthorized)
+			return
+		}
+	}
+	var u User
+	err := db.QueryRow("SELECT name, surename, email FROM users WHERE api_key = $1", apiKey).Scan(&u.Name, &u.Surename, &u.Email)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to fetch user info: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(u)
 }
