@@ -47,7 +47,7 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = db.Exec(
-		"INSERT INTO bookings (name, surname, email, phone, service, start_time, end_time) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"INSERT INTO bookings (name, surname, email, phone, service, start_time, end_time, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 		b.Name,
 		b.Surname,
 		b.Email,
@@ -55,6 +55,7 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 		b.Service,
 		b.StartTime,
 		b.EndTime,
+		b.UserId,
 	)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to insert booking: %v", err), http.StatusInternalServerError)
@@ -96,132 +97,155 @@ func createBookingHandlerGuest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
-// 	logedIn := false
-// 	id := "-1"
-// 	if r.Method != http.MethodGet {
-// 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-// 		return
-// 	}
-// 	apiKey := r.Header.Get("Authorization")
-// 	if apiKey != "" {
-// 		if valid, _ := validateAPIKey(apiKey); !valid {
-// 			http.Error(w, "Invalid API key", http.StatusUnauthorized)
-// 			return
-// 		}
-// 		logedIn = true
-// 		err := db.QueryRow("SELECT id FROM users WHERE api_key = $1", apiKey).Scan(&id)
-// 		if err != nil {
-// 			http.Error(w, fmt.Sprintf("Failed to fetch user ID: %v", err), http.StatusInternalServerError)
-// 			return
-// 		}
-// 	}
+func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
+	loggedIn := false
+	id := -1
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	apiKey := r.Header.Get("Authorization")
+	if apiKey != "" {
+		if valid, _ := validateAPIKey(apiKey); !valid {
+			http.Error(w, "Invalid API key", http.StatusUnauthorized)
+			return
+		}
+		loggedIn = true
+		err := db.QueryRow("SELECT id FROM users WHERE api_key = $1", apiKey).Scan(&id)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to fetch user ID: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
 
-// 	rows, err := db.Query("SELECT date, start_time, end_time, user_id, users.api_key FROM bookings LEFT JOIN users ON bookings.user_id=users.id")
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Failed to fetch bookings: %v", err), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer rows.Close()
+	rows, err := db.Query("SELECT bookings.id, bookings.user_id, bookings.name, bookings.surname, bookings.email, bookings.phone, bookings.service, bookings.start_time, bookings.end_time FROM bookings LEFT JOIN users ON bookings.user_id=users.id")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to fetch bookings: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
 
-// 	var bookings []map[string]string
-// 	for rows.Next() {
-// 		var date, startTime, endTime, userId, apiKey sql.NullString
-// 		if err := rows.Scan(&date, &startTime, &endTime, &userId, &apiKey); err != nil {
-// 			http.Error(w, fmt.Sprintf("Failed to parse bookings: %v", err), http.StatusInternalServerError)
-// 			return
-// 		}
-// 		booking := map[string]string{
-// 			"date":       date.String,
-// 			"start_time": startTime.String,
-// 			"end_time":   endTime.String,
-// 		}
-// 		if userId.Valid && logedIn && id == userId.String {
-// 			booking["user_id"] = userId.String
-// 		}
-// 		bookings = append(bookings, booking)
-// 	}
+	var bookings []map[string]string
+	for rows.Next() {
+		var booking Booking
+		var userId sql.NullInt64
+		err := rows.Scan(&booking.Id, &userId, &booking.Name, &booking.Surname, &booking.Email, &booking.Phone, &booking.Service, &booking.StartTime, &booking.EndTime)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to scan booking: %v", err), http.StatusInternalServerError)
+			return
+		}
 
-// 	w.Header().Set("Content-Type", "application/json")
-// 	json.NewEncoder(w).Encode(bookings)
-// }
+		if userId.Valid && loggedIn && userId.Int64 == int64(id) {
+			booking.UserId = int(userId.Int64)
+		} else {
+			booking.UserId = 0
+		}
 
-// func getBookingsHandlerGuest(w http.ResponseWriter, r *http.Request) {}
+		bookings = append(bookings, map[string]string{
+			"id":         fmt.Sprintf("%d", booking.Id),
+			"name":       booking.Name,
+			"surname":    booking.Surname,
+			"email":      booking.Email,
+			"phone":      booking.Phone,
+			"service":    fmt.Sprintf("%d", booking.Service),
+			"start_time": booking.StartTime,
+			"end_time":   booking.EndTime,
+			"user_id":    fmt.Sprintf("%d", booking.UserId),
+		})
+	}
 
-// func editBookingHandler(w http.ResponseWriter, r *http.Request) {
-// 	if r.Method != http.MethodPost {
-// 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-// 		return
-// 	}
-// 	apiKey := r.Header.Get("Authorization")
-// 	if apiKey != "" {
-// 		if valid, _ := validateAPIKey(apiKey); !valid {
-// 			http.Error(w, "Invalid API key", http.StatusUnauthorized)
-// 			return
-// 		}
-// 	}
-// 	isAdmin, err := validateAdmin(apiKey)
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Failed to validate admin: %v", err), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	if !isAdmin {
-// 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-// 		return
-// 	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(bookings)
+}
 
-// 	var e EditQuery
-// 	err = json.NewDecoder(r.Body).Decode(&e)
-// 	if err != nil {
-// 		http.Error(w, "Bad Request", http.StatusBadRequest)
-// 		return
-// 	}
+func editBookingHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	apiKey := r.Header.Get("Authorization")
+	if apiKey != "" {
+		if valid, _ := validateAPIKey(apiKey); !valid {
+			http.Error(w, "Invalid API key", http.StatusUnauthorized)
+			return
+		}
+	}
+	isAdmin, err := validateAdmin(apiKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to validate admin: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if !isAdmin {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
-// 	_, err = db.Exec("UPDATE bookings SET name = $1, surename = $2, email = $3, date = $4, start_time = $5, end_time = $6 WHERE date = $7 AND start_time = $8 AND end_time = $9",
-// 		e.Name, e.Surename, e.Email, e.Date, e.StartTime, e.EndTime, e.OriginalDate, e.OriginalStartTime, e.OriginalEndTime)
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Failed to update booking: %v", err), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	w.WriteHeader(http.StatusOK)
-// }
+	var b Booking
+	err = json.NewDecoder(r.Body).Decode(&b)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	if b.Service == 0 {
+		b.Service = 1
+	}
+	_, err = db.Exec(
+		"UPDATE bookings SET name = $1, surname = $2, email = $3, phone = $4, service = $5, start_time = $6, end_time = $7 WHERE id = $8 ",
+		b.Name,
+		b.Surname,
+		b.Email,
+		sql.NullString{String: b.Phone, Valid: b.Phone != ""},
+		b.Service,
+		b.StartTime,
+		b.EndTime,
+		b.Id,
+	)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update booking: %v", err), http.StatusInternalServerError)
+		return
+	}
 
-// func deleteBookingHandler(w http.ResponseWriter, r *http.Request) {
-// 	if r.Method != http.MethodPost {
-// 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-// 		return
-// 	}
-// 	apiKey := r.Header.Get("Authorization")
-// 	if apiKey != "" {
-// 		if valid, _ := validateAPIKey(apiKey); !valid {
-// 			http.Error(w, "Invalid API key", http.StatusUnauthorized)
-// 			return
-// 		}
-// 	}
-// 	isAdmin, err := validateAdmin(apiKey)
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Failed to validate admin: %v", err), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	if !isAdmin {
-// 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-// 		return
-// 	}
+	w.WriteHeader(http.StatusOK)
+}
 
-// 	var d DeleteQuery
-// 	err = json.NewDecoder(r.Body).Decode(&d)
-// 	if err != nil {
-// 		http.Error(w, "Bad Request", http.StatusBadRequest)
-// 		return
-// 	}
+func deleteBookingHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	apiKey := r.Header.Get("Authorization")
+	if apiKey != "" {
+		if valid, _ := validateAPIKey(apiKey); !valid {
+			http.Error(w, "Invalid API key", http.StatusUnauthorized)
+			return
+		}
+	}
+	isAdmin, err := validateAdmin(apiKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to validate admin: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if !isAdmin {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
-// 	_, err = db.Exec("DELETE FROM bookings WHERE date = $1 AND start_time = $2 AND end_time = $3", d.Date, d.StartTime, d.EndTime)
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Failed to delete booking: %v", err), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	w.WriteHeader(http.StatusOK)
-// }
+	var b Booking
+	err = json.NewDecoder(r.Body).Decode(&b)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	_, err = db.Exec(
+		"DELETE FROM bookings WHERE id = $1",
+		b.Id,
+	)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to delete booking: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
 
 func registerUserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -305,49 +329,49 @@ func loginUserHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"api_key": apiKey})
 }
 
-// func checkUserPermissionHandler(w http.ResponseWriter, r *http.Request) {
-// 	if r.Method != http.MethodGet {
-// 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-// 		return
-// 	}
-// 	apiKey := r.Header.Get("Authorization")
-// 	if apiKey != "" {
-// 		if valid, _ := validateAPIKey(apiKey); !valid {
-// 			http.Error(w, "Invalid API key", http.StatusUnauthorized)
-// 			return
-// 		}
-// 	}
-// 	isAdmin, err := validateAdmin(apiKey)
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Failed to validate admin: %v", err), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	if !isAdmin {
-// 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-// 		return
-// 	}
-// 	w.WriteHeader(http.StatusOK)
-// }
+func checkUserPermissionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	apiKey := r.Header.Get("Authorization")
+	if apiKey != "" {
+		if valid, _ := validateAPIKey(apiKey); !valid {
+			http.Error(w, "Invalid API key", http.StatusUnauthorized)
+			return
+		}
+	}
+	isAdmin, err := validateAdmin(apiKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to validate admin: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if !isAdmin {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
 
-// func getUserInfoHandler(w http.ResponseWriter, r *http.Request) {
-// 	if r.Method != http.MethodGet {
-// 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-// 		return
-// 	}
-// 	apiKey := r.Header.Get("Authorization")
-// 	if apiKey != "" {
-// 		if valid, _ := validateAPIKey(apiKey); !valid {
-// 			http.Error(w, "Invalid API key", http.StatusUnauthorized)
-// 			return
-// 		}
-// 	}
-// 	var u User
-// 	err := db.QueryRow("SELECT name, surename, email FROM users WHERE api_key = $1", apiKey).Scan(&u.Name, &u.Surename, &u.Email)
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Failed to fetch user info: %v", err), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(http.StatusOK)
-// 	json.NewEncoder(w).Encode(u)
-// }
+func getUserInfoHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	apiKey := r.Header.Get("Authorization")
+	if apiKey != "" {
+		if valid, _ := validateAPIKey(apiKey); !valid {
+			http.Error(w, "Invalid API key", http.StatusUnauthorized)
+			return
+		}
+	}
+	var u User
+	err := db.QueryRow("SELECT name, surname, email FROM users WHERE api_key = $1", apiKey).Scan(&u.Name, &u.Surname, &u.Email)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to fetch user info: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(u)
+}

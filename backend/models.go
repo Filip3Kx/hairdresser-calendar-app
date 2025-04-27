@@ -1,6 +1,7 @@
 package main
 
 type Booking struct {
+	Id        int    `json:"id"`
 	Name      string `json:"name"`
 	Surname   string `json:"surname"`
 	Email     string `json:"email"`
@@ -12,6 +13,7 @@ type Booking struct {
 }
 
 type User struct {
+	Id       int    `json:"id"`
 	Name     string `json:"name"`
 	Surname  string `json:"surname"`
 	Email    string `json:"email"`
@@ -20,6 +22,7 @@ type User struct {
 }
 
 type Service struct {
+	Id          int    `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Price       string `json:"price"`
