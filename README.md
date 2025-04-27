@@ -8,17 +8,25 @@ something to be added
 
 
 Co działa.
-- Dodawanie bookingów
-- Wyświetlanie bookingów w kalendarzu
+- Dodawanie terminów
+- Wyświetlanie terminów w kalendarzu
 - Zmiana widoków
 - Logowanie i rejestracja
-- Użytkownik może dodawać bookingi jako zalogowany i anonimowy (API Key)
-- Wyświetlanie własnych bookingów
-- Wypełnienie danych na podstawie zalogowanego usera
+- Użytkownik może dodawać terminów jako zalogowany i anonimowy (API Key)
+- Wyświetlanie własnych terminów
+- Wypełnienie danych na podstawie zalogowanego użytkownika
 
 Do zrobienia
 - Administrator
 - SMTP
+
+## App Diagram
+
+- Nginx
+- React Frontend
+- PostgreSQL Database
+- Golang Backend
+- SMTP server
 
 ## Running in docker compose (localhost | testing purposes)
 
@@ -28,23 +36,23 @@ docker compose up --build
 
 ## Running in docker swarm (production)
 
-Build the images first - docker swarm doesn't support building as a part of the deployment
+W pierwszej kolejności trzeba wybudować obrazy. Docker Swarm nie wspiera budowania jako jeden z kroków wdrożenia.
 ```bash
 docker build -t calendar_app_frontend ./frontend
 docker build -t calendar_app_backend ./backend
 ```
 
-Initialize the swarm
+Inicjalizacja Docker Swarm
 ```bash
 docker swarm init
 ```
 
-Deploy the stack
+Wdrożenie stack'a
 ```bash
 docker stack deploy -c docker-swarm.yml calendar_app
 ```
 
-Remove the stack
+Usuwanie stack'a
 ```bash
 docker stack rm calendar_app
 ```

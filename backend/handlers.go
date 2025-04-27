@@ -80,7 +80,7 @@ func editBookingHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("UPDATE bookings SET name = $1, surename = $2, email = $3, date = $4, start_time = $5, end_time = $6 WHERE user_id = $7", b.Name, b.Surename, b.Email, b.Date, b.StartTime, b.EndTime, b.UserId)
+	_, err = db.Exec("UPDATE bookings SET name = $1, surename = $2, email = $3, date = $4, start_time = $5, end_time = $6 WHERE date = $7 AND start_time = $8 AND end_time = $9", b.Name, b.Surename, b.Email, b.Date, b.StartTime, b.EndTime, b.Date, b.StartTime, b.EndTime)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to update booking: %v", err), http.StatusInternalServerError)
 		return
