@@ -23,13 +23,10 @@ func main() {
 
 	http.HandleFunc("/hello", helloHandler) //tester
 	http.HandleFunc("/bookings/create", createBookingHandler)
-	http.HandleFunc("/bookings/get", getBookingsHandler)
-	http.HandleFunc("/bookings/edit", editBookingHandler)
-	http.HandleFunc("/bookings/delete", deleteBookingHandler)
+	http.HandleFunc("/bookings/createGuest", createBookingHandlerGuest)
+
 	http.HandleFunc("/auth/register", registerUserHandler)
 	http.HandleFunc("/auth/login", loginUserHandler)
-	http.HandleFunc("/auth/check", checkUserPermissionHandler)
-	http.HandleFunc("/auth/userinfo", getUserInfoHandler)
 
 	fmt.Println("Starting server on :5000")
 	if err := http.ListenAndServe(":5000", nil); err != nil {

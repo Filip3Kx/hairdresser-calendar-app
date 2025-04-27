@@ -79,7 +79,7 @@ func createAdminUser() {
 		if err != nil {
 			panic(err)
 		}
-		_, err = db.Exec("INSERT INTO users (name, surename, email, password, api_key, is_admin) VALUES ('admin', 'admin', 'admin@example.com', $1, $2, TRUE)", hashedPassword, apiKey)
+		_, err = db.Exec("INSERT INTO users (name, surname, email, password, api_key, is_admin) VALUES ('admin', 'admin', 'admin@example.com', $1, $2, TRUE)", hashedPassword, apiKey)
 		if err != nil {
 			panic(err)
 		}
