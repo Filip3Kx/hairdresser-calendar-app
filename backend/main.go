@@ -88,6 +88,11 @@ func main() {
 		}'
 	*/
 
+	http.HandleFunc("/bookings/servicesGet", getServicesHandler)
+	/*
+		curl -X GET "http://localhost:5000/bookings/servicesGet" \
+	*/
+
 	http.HandleFunc("/auth/register", registerUserHandler)
 	/*
 		curl -X POST "http://localhost:5000/auth/register" \

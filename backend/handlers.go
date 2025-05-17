@@ -33,6 +33,16 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
+	v, err := isBookingConflict(b.StartTime, b.EndTime)
+	if v || err != nil {
+		http.Error(w, "Booking conflict", http.StatusConflict)
+		return
+	}
+	v, err = isEmailRegistered(b.Email, apiKey)
+	if v || err != nil {
+		http.Error(w, "Email already registered", http.StatusConflict)
+		return
+	}
 	if b.Service == 0 {
 		b.Service = 1
 	}
@@ -74,6 +84,16 @@ func createBookingHandlerGuest(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&b)
 	if err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	v, err := isBookingConflict(b.StartTime, b.EndTime)
+	if v || err != nil {
+		http.Error(w, "Booking conflict", http.StatusConflict)
+		return
+	}
+	v, err = isEmailRegistered(b.Email, "")
+	if v || err != nil {
+		http.Error(w, "Email already registered", http.StatusConflict)
 		return
 	}
 	if b.Service == 0 {
@@ -139,6 +159,11 @@ func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
 			booking.UserId = int(userId.Int64)
 		} else {
 			booking.UserId = 0
+			booking.Name = "Taken"
+			booking.Surname = ""
+			booking.Email = "Hidden"
+			booking.Phone = "Hidden"
+			booking.Service = 0
 		}
 
 		bookings = append(bookings, map[string]string{
@@ -374,4 +399,36 @@ func getUserInfoHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(u)
+}
+
+func getServicesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := db.Query("SELECT id, name, duration FROM services")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to fetch services: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var services []map[string]string
+	for rows.Next() {
+		var service Service
+		err := rows.Scan(&service.Id, &service.Name, &service.Duration)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to scan service: %v", err), http.StatusInternalServerError)
+			return
+		}
+		services = append(services, map[string]string{
+			"id":       fmt.Sprintf("%d", service.Id),
+			"name":     service.Name,
+			"duration": service.Duration,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(services)
 }

@@ -16,8 +16,13 @@ CREATE TABLE services (
     price NUMERIC(10, 2)
 );
 
-INSERT INTO services (name, description) VALUES
-('Not specified', 'To be discussed with the saloon');
+INSERT INTO services (name, description, duration, price) VALUES
+('Not specified', 'To be discussed with the saloon', '60', '0.00'),
+('Haircut', 'A simple haircut', '30', '20.00'),
+('Shave', 'A simple shave', '15', '10.00'),
+('Facial', 'A simple facial treatment', '45', '50.00'),
+('Manicure', 'A simple manicure treatment', '30', '25.00'),
+('Pedicure', 'A simple pedicure treatment', '30', '25.00');
 
 CREATE TABLE bookings (
     id SERIAL PRIMARY KEY,

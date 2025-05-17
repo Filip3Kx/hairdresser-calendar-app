@@ -4,7 +4,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 
-const Calendar = ({ events }) => {
+const Calendar = ({ events, onDateClick }) => {
   return (
     <FullCalendar
       plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -15,6 +15,7 @@ const Calendar = ({ events }) => {
         center: "title",
         right: "dayGridMonth,timeGridWeek,timeGridDay",
       }}
+      dateClick={(info) => onDateClick(info.dateStr)}
     />
   );
 };

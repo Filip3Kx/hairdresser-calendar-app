@@ -4,6 +4,7 @@ import Calendar from "./components/Calendar";
 import LoginModal from "./components/LoginModal";
 import RegisterModal from "./components/RegisterModal";
 import Logout from "./components/Logout";
+import AddAppointmentModal from "./components/AddAppointmentModal";
 import { fetchBookings } from "./utils/api";
 
 const App = () => {
@@ -11,14 +12,37 @@ const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
 
-  useEffect(() => {
+  const refreshBookings = () => {
     const apiKey = Cookies.get("apiKey");
     if (apiKey) {
       setIsLoggedIn(true);
       fetchBookings(apiKey, setEvents);
+    } else {
+      setIsLoggedIn(false);
+      fetchBookings("", setEvents);
     }
+  };
+
+  useEffect(() => {
+    refreshBookings();
   }, []);
+
+  // Prevent background interaction when modal is open
+  useEffect(() => {
+    if (showLogin || showRegister || showAddModal) {
+      document.body.classList.add("modal-open");
+    } else {
+      document.body.classList.remove("modal-open");
+    }
+  }, [showLogin, showRegister, showAddModal]);
+
+  const handleDateClick = (dateStr) => {
+    setSelectedDate(dateStr);
+    setShowAddModal(true);
+  };
 
   return (
     <div>
@@ -33,7 +57,7 @@ const App = () => {
           <Logout setIsLoggedIn={setIsLoggedIn} setEvents={setEvents} />
         )}
       </div>
-      <Calendar events={events} />
+      <Calendar events={events} onDateClick={handleDateClick} />
       {showLogin && (
         <LoginModal
           setIsLoggedIn={setIsLoggedIn}
@@ -42,6 +66,14 @@ const App = () => {
         />
       )}
       {showRegister && <RegisterModal onClose={() => setShowRegister(false)} />}
+      {showAddModal && (
+        <AddAppointmentModal
+          date={selectedDate}
+          onClose={() => setShowAddModal(false)}
+          isLoggedIn={isLoggedIn}
+          refreshBookings={refreshBookings}
+        />
+      )}
     </div>
   );
 };

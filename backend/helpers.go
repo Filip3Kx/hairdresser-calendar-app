@@ -97,3 +97,37 @@ func validateAdmin(apiKey string) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+func isBookingConflict(startTime, endTime string) (bool, error) {
+	var count int
+	query := `
+        SELECT COUNT(*) FROM bookings
+        WHERE 
+            DATE(start_time) = DATE($1)
+            AND (start_time < $3 AND end_time > $2)
+    `
+	err := db.QueryRow(query, startTime, startTime, endTime).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to check booking conflict: %v", err)
+	}
+	return count > 0, nil
+}
+
+func isEmailRegistered(email, apiKey string) (bool, error) {
+	if apiKey != "" {
+		var userEmail string
+		err := db.QueryRow("SELECT email FROM users WHERE api_key = $1", apiKey).Scan(&userEmail)
+		if err != nil {
+			return false, fmt.Errorf("failed to get user info: %v", err)
+		}
+		if userEmail == email {
+			return false, nil
+		}
+	}
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if email is registered: %v", err)
+	}
+	return exists, nil
+}
