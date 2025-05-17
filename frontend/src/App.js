@@ -5,6 +5,7 @@ import LoginModal from "./components/LoginModal";
 import RegisterModal from "./components/RegisterModal";
 import Logout from "./components/Logout";
 import AddAppointmentModal from "./components/AddAppointmentModal";
+import AdminPage from "./components/AdminPage"; // <-- import
 import { fetchBookings } from "./utils/api";
 
 const App = () => {
@@ -14,6 +15,8 @@ const App = () => {
   const [showRegister, setShowRegister] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const refreshBookings = () => {
     const apiKey = Cookies.get("apiKey");
@@ -30,6 +33,24 @@ const App = () => {
     refreshBookings();
   }, []);
 
+  // Check if user is admin after login
+  useEffect(() => {
+    const apiKey = Cookies.get("apiKey");
+    if (isLoggedIn && apiKey) {
+      fetch("/auth/check", {
+        headers: { Authorization: apiKey },
+      }).then((res) => {
+        if (res.ok) {
+          setIsAdmin(true);
+          setShowAdmin(true);
+        } else {
+          setIsAdmin(false);
+          setShowAdmin(false);
+        }
+      });
+    }
+  }, [isLoggedIn]);
+
   // Prevent background interaction when modal is open
   useEffect(() => {
     if (showLogin || showRegister || showAddModal) {
@@ -43,6 +64,16 @@ const App = () => {
     setSelectedDate(dateStr);
     setShowAddModal(true);
   };
+
+  if (showAdmin) {
+    return (
+      <AdminPage
+        setIsLoggedIn={setIsLoggedIn}
+        setEvents={setEvents}
+        setShowAdmin={setShowAdmin}
+      />
+    );
+  }
 
   return (
     <div>

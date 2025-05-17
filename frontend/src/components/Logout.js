@@ -6,6 +6,7 @@ const Logout = ({ setIsLoggedIn, setEvents }) => {
     Cookies.remove("apiKey");
     setIsLoggedIn(false);
     setEvents([]);
+    window.location.reload(); // Refresh the page after logout
   };
 
   return <button onClick={handleLogout}>Logout</button>;
