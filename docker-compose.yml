@@ -38,10 +38,10 @@ services:
       - "5000:5000"
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/calendar_app?sslmode=disable
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_USER=<email>
-      - SMTP_PASS=<password>
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
     depends_on:
       - db
     networks:

@@ -125,6 +125,9 @@ func main() {
 	*/
 
 	http.HandleFunc("/mail/test", sendTestEmailHandler)
+	/*
+		curl -X POST "http://localhost:5000/mail/test" \
+	*/
 
 	fmt.Println("Starting server on :5000")
 	if err := http.ListenAndServe(":5000", nil); err != nil {
