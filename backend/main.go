@@ -124,6 +124,8 @@ func main() {
 		-H "Authorization: API_KEY"
 	*/
 
+	http.HandleFunc("/mail/test", sendTestEmailHandler)
+
 	fmt.Println("Starting server on :5000")
 	if err := http.ListenAndServe(":5000", nil); err != nil {
 		fmt.Println("Error starting server:", err)

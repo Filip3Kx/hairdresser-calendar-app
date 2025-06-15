@@ -4,7 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"net/smtp"
+	"os"
 )
 
 var db *sql.DB
@@ -119,6 +122,7 @@ func createBookingHandlerGuest(w http.ResponseWriter, r *http.Request) {
 
 func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
 	loggedIn := false
+	isAdmin := false
 	id := -1
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -134,6 +138,11 @@ func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
 		err := db.QueryRow("SELECT id FROM users WHERE api_key = $1", apiKey).Scan(&id)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to fetch user ID: %v", err), http.StatusInternalServerError)
+			return
+		}
+		isAdmin, err = validateAdmin(apiKey)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to validate admin: %v", err), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -157,6 +166,8 @@ func getBookingsHandler(w http.ResponseWriter, r *http.Request) {
 
 		if userId.Valid && loggedIn && userId.Int64 == int64(id) {
 			booking.UserId = int(userId.Int64)
+		} else if isAdmin {
+			// Do nothing
 		} else {
 			booking.UserId = 0
 			booking.Name = "Taken"
@@ -431,4 +442,37 @@ func getServicesHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(services)
+}
+
+func sendTestEmailHandler(w http.ResponseWriter, r *http.Request) {
+	to := "filip.kubawski@gmail.com"
+	subject := "Test Email"
+	body := "This is a test email from your calendar app."
+
+	smtpHost := os.Getenv("SMTP_HOST")
+	smtpPort := os.Getenv("SMTP_PORT")
+	smtpUser := os.Getenv("SMTP_USER")
+	smtpPass := os.Getenv("SMTP_PASS")
+
+	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpHost)
+
+	msg := []byte("From: " + smtpUser + "\r\n" +
+		"To: " + to + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"Content-Type: text/plain; charset=\"utf-8\"\r\n" +
+		"\r\n" +
+		body + "\r\n")
+
+	addr := smtpHost + ":" + smtpPort
+	log.Printf("Sending email to %s via %s\n", to, addr)
+
+	err := smtp.SendMail(addr, auth, smtpUser, []string{to}, msg)
+	if err != nil {
+		http.Error(w, "Failed to send email: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("SMTP error: %v", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Test email sent"))
 }
