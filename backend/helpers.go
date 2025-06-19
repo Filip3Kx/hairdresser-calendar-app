@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"os"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -64,14 +69,14 @@ func waitForDbConnection() {
 	}
 }
 
-func createAdminUser() {
+func createAdminUser(email, password string) {
 	var exists bool
-	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = 'admin@example.com')").Scan(&exists)
+	err := db.QueryRow(fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM users WHERE email = '%s')", email)).Scan(&exists)
 	if err != nil {
 		panic(err)
 	}
 	if !exists {
-		hashedPassword, err := encryptPassword("admin")
+		hashedPassword, err := encryptPassword(password)
 		if err != nil {
 			panic(err)
 		}
@@ -79,7 +84,7 @@ func createAdminUser() {
 		if err != nil {
 			panic(err)
 		}
-		_, err = db.Exec("INSERT INTO users (name, surname, email, password, api_key, is_admin) VALUES ('admin', 'admin', 'admin@example.com', $1, $2, TRUE)", hashedPassword, apiKey)
+		_, err = db.Exec(fmt.Sprintf("INSERT INTO users (name, surname, email, password, api_key, is_admin) VALUES ('admin', 'admin', '%s', $1, $2, TRUE)", email), hashedPassword, apiKey)
 		if err != nil {
 			panic(err)
 		}
@@ -130,4 +135,78 @@ func isEmailRegistered(email, apiKey string) (bool, error) {
 		return false, fmt.Errorf("failed to check if email is registered: %v", err)
 	}
 	return exists, nil
+}
+
+func notifyBookingCreated(name, surname, email, start_time, end_time string) error {
+	to := os.Getenv("ADMIN_EMAIL")
+	subject := fmt.Sprintf("New Booking Created: %s %s | %s - %s", name, surname, start_time, end_time)
+	body := fmt.Sprintf("A new booking has been created:\n\nName: %s %s\nEmail: %s\nStart Time: %s\nEnd Time: %s", name, surname, email, start_time, end_time)
+
+	payload := map[string]string{
+		"to":      to,
+		"subject": subject,
+		"body":    body,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal email payload: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", "http://localhost:5000/mail/send", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create email request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send email: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("email service returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
+}
+
+func confirmBookingCreated(name, surname, email, start_time, end_time string) error {
+	to := email
+	subject := "Your booking was created"
+	body := fmt.Sprintf("Your booking was created:\n\nName: %s %s\nEmail: %s\nStart Time: %s\nEnd Time: %s", name, surname, email, start_time, end_time)
+
+	payload := map[string]string{
+		"to":      to,
+		"subject": subject,
+		"body":    body,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal email payload: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", "http://localhost:5000/mail/send", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create email request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send email: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("email service returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
 }
