@@ -19,7 +19,7 @@ func main() {
 	defer db.Close()
 
 	waitForDbConnection()
-	createAdminUser()
+	createAdminUser(os.Getenv("ADMIN_EMAIL"), os.Getenv("ADMIN_PASSWORD"))
 
 	http.HandleFunc("/hello", helloHandler) //tester
 	/*
@@ -124,10 +124,12 @@ func main() {
 		-H "Authorization: API_KEY"
 	*/
 
-	http.HandleFunc("/mail/test", sendTestEmailHandler)
+	//http.HandleFunc("/mail/test", sendTestEmailHandler)
 	/*
-		curl -X POST "http://localhost:5000/mail/test" \
+		curl -X POST "http://localhost:5000/mail/test"
 	*/
+
+	http.HandleFunc("/mail/send", sendEmailHandler)
 
 	fmt.Println("Starting server on :5000")
 	if err := http.ListenAndServe(":5000", nil); err != nil {

@@ -74,6 +74,10 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to insert booking: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	notifyBookingCreated(b.Name, b.Surname, b.Email, b.StartTime, b.EndTime)
+	confirmBookingCreated(b.Name, b.Surname, b.Email, b.StartTime, b.EndTime)
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -117,6 +121,10 @@ func createBookingHandlerGuest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to insert booking: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	notifyBookingCreated(b.Name, b.Surname, b.Email, b.StartTime, b.EndTime)
+	confirmBookingCreated(b.Name, b.Surname, b.Email, b.StartTime, b.EndTime)
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -444,10 +452,61 @@ func getServicesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(services)
 }
 
-func sendTestEmailHandler(w http.ResponseWriter, r *http.Request) {
-	to := "filip.kubawski@gmail.com"
-	subject := "Test Email"
-	body := "This is a test email from your calendar app."
+// func sendTestEmailHandler(w http.ResponseWriter, r *http.Request) {
+// 	to := "sample@example.com"
+// 	subject := "Test Email"
+// 	body := "This is a test email from your calendar app."
+
+// 	smtpHost := os.Getenv("SMTP_HOST")
+// 	smtpPort := os.Getenv("SMTP_PORT")
+// 	smtpUser := os.Getenv("SMTP_USER")
+// 	smtpPass := os.Getenv("SMTP_PASS")
+
+// 	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpHost)
+
+// 	msg := []byte("From: " + smtpUser + "\r\n" +
+// 		"To: " + to + "\r\n" +
+// 		"Subject: " + subject + "\r\n" +
+// 		"Content-Type: text/plain; charset=\"utf-8\"\r\n" +
+// 		"\r\n" +
+// 		body + "\r\n")
+
+// 	addr := smtpHost + ":" + smtpPort
+// 	log.Printf("Sending email to %s via %s\n", to, addr)
+
+// 	err := smtp.SendMail(addr, auth, smtpUser, []string{to}, msg)
+// 	if err != nil {
+// 		http.Error(w, "Failed to send email: "+err.Error(), http.StatusInternalServerError)
+// 		log.Printf("SMTP error: %v", err)
+// 		return
+// 	}
+
+// 	w.WriteHeader(http.StatusOK)
+// 	w.Write([]byte("Test email sent"))
+// }
+
+func sendEmailHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var emailData struct {
+		To      string `json:"to"`
+		Subject string `json:"subject"`
+		Body    string `json:"body"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&emailData)
+	if err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	to := emailData.To
+	subject := emailData.Subject
+	body := emailData.Body
+	if to == "" || subject == "" || body == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
 
 	smtpHost := os.Getenv("SMTP_HOST")
 	smtpPort := os.Getenv("SMTP_PORT")
@@ -466,7 +525,7 @@ func sendTestEmailHandler(w http.ResponseWriter, r *http.Request) {
 	addr := smtpHost + ":" + smtpPort
 	log.Printf("Sending email to %s via %s\n", to, addr)
 
-	err := smtp.SendMail(addr, auth, smtpUser, []string{to}, msg)
+	err = smtp.SendMail(addr, auth, smtpUser, []string{to}, msg)
 	if err != nil {
 		http.Error(w, "Failed to send email: "+err.Error(), http.StatusInternalServerError)
 		log.Printf("SMTP error: %v", err)
@@ -474,5 +533,5 @@ func sendTestEmailHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Test email sent"))
+	w.Write([]byte("Email sent"))
 }
