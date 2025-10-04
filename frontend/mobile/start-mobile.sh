@@ -4,7 +4,8 @@
 set -e
 
 echo "--- Restarting app ---"
-docker-compose restart react-native
+docker-compose down react-native
+docker-compose up -d react-native --build
 
 echo "--- Waiting for Android emulator to be ready (this may take a minute) ---"
 # We wait until the emulator reports that it is fully booted
