@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+  FlatList,
+  Modal,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // The backend is running in another container. From the Android emulator's perspective,
@@ -8,7 +19,20 @@ const API_HOST = 'http://calendar_app_backend:5000';
 
 const App = () => {
   const [apiKey, setApiKey] = useState(null);
+  const [events, setEvents] = useState([]);
   const [view, setView] = useState('login'); // 'login' or 'register'
+
+  // Add appointment UI state
+  const [modalVisible, setModalVisible] = useState(false);
+  const [services, setServices] = useState([]);
+  const [serviceId, setServiceId] = useState('');
+  const [serviceDuration, setServiceDuration] = useState(60);
+  const [startDate, setStartDate] = useState(''); // YYYY-MM-DD
+  const [startTime, setStartTime] = useState(''); // HH:MM
+  const [nameField, setNameField] = useState('');
+  const [surnameField, setSurnameField] = useState('');
+  const [emailField, setEmailField] = useState('');
+  const [phoneField, setPhoneField] = useState('');
 
   // Form state
   const [name, setName] = useState('');
@@ -30,6 +54,53 @@ const App = () => {
     };
     checkLoginStatus();
   }, []);
+
+  // When apiKey changes (login) fetch bookings and services
+  useEffect(() => {
+    if (apiKey) {
+      refreshBookings();
+      fetchServices();
+    }
+  }, [apiKey]);
+
+  const refreshBookings = async () => {
+    try {
+      const res = await fetch(`${API_HOST}/bookings/get`, {
+        headers: {
+          Authorization: apiKey || '',
+        },
+      });
+      if (!res.ok) {
+        throw new Error('Failed to fetch bookings');
+      }
+      const data = await res.json();
+      // map to simple objects
+      const formatted = data.map((b) => ({
+        id: b.id,
+        title: `${b.name} ${b.surname}`,
+        start: b.start_time,
+        end: b.end_time,
+      }));
+      setEvents(formatted);
+    } catch (err) {
+      console.error('Error fetching bookings', err);
+    }
+  };
+
+  const fetchServices = async () => {
+    try {
+      const res = await fetch(`${API_HOST}/bookings/servicesGet`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setServices(data);
+      if (data.length > 0) {
+        setServiceId(String(data[0].id));
+        setServiceDuration(data[0].duration || 60);
+      }
+    } catch (err) {
+      console.error('Failed to load services', err);
+    }
+  };
 
   const handleRegister = async () => {
     try {
@@ -77,20 +148,99 @@ const App = () => {
       setPassword('');
       setName('');
       setSurname('');
+      // clear mobile-specific fields
+      setEvents([]);
+      setServices([]);
     } catch (error) {
       Alert.alert('Logout Error', 'Failed to log out.');
     }
   };
 
-  // If user is logged in, show a welcome message
+  // If user is logged in, show calendar and booking UI
   if (apiKey) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Welcome!</Text>
-        <Text>You are logged in.</Text>
-        <View style={styles.buttonContainer}>
+        <Text style={styles.title}>Booking Calendar</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
           <Button title="Logout" onPress={handleLogout} color="#ff6347" />
+          <Button title="Add Appointment" onPress={() => setModalVisible(true)} />
         </View>
+
+        <Text style={{ marginTop: 12, marginBottom: 6, fontWeight: '600' }}>Upcoming bookings</Text>
+        <FlatList
+          data={events.sort((a,b)=> new Date(a.start)-new Date(b.start))}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={({ item }) => (
+            <View style={{ padding: 10, borderBottomWidth: 1, borderColor: '#eee' }}>
+              <Text style={{ fontWeight: '600' }}>{item.title}</Text>
+              <Text>{new Date(item.start).toLocaleString()} - {new Date(item.end).toLocaleTimeString()}</Text>
+            </View>
+          )}
+          style={{ width: '100%', marginTop: 8 }}
+          ListEmptyComponent={<Text>No bookings found.</Text>}
+        />
+
+        <Modal visible={modalVisible} animationType="slide">
+          <ScrollView contentContainerStyle={{ padding: 20 }}>
+            <Text style={styles.title}>Add Appointment</Text>
+
+            <TextInput style={styles.input} placeholder="Name" value={nameField} onChangeText={setNameField} />
+            <TextInput style={styles.input} placeholder="Surname" value={surnameField} onChangeText={setSurnameField} />
+            <TextInput style={styles.input} placeholder="Email" value={emailField} onChangeText={setEmailField} keyboardType="email-address" />
+            <TextInput style={styles.input} placeholder="Phone" value={phoneField} onChangeText={setPhoneField} />
+
+            <Text style={{ marginTop: 8 }}>Date (YYYY-MM-DD)</Text>
+            <TextInput style={styles.input} placeholder="2025-12-01" value={startDate} onChangeText={setStartDate} />
+            <Text style={{ marginTop: 8 }}>Time (HH:MM)</Text>
+            <TextInput style={styles.input} placeholder="14:30" value={startTime} onChangeText={setStartTime} />
+
+            <Text style={{ marginTop: 8 }}>Service</Text>
+            {services.map((s) => (
+              <TouchableOpacity key={s.id} onPress={() => { setServiceId(String(s.id)); setServiceDuration(s.duration || 60); }} style={{ padding: 8, backgroundColor: serviceId==String(s.id)?'#ddd':'#fff', marginVertical: 4, borderRadius:4 }}>
+                <Text>{s.name} ({s.duration} min)</Text>
+              </TouchableOpacity>
+            ))}
+
+            <View style={{ marginTop: 12 }}>
+              <Button title="Create" onPress={async () => {
+                // validate
+                if (!startDate || !startTime) { Alert.alert('Validation', 'Please provide date and time'); return; }
+                const dt = new Date(startDate + 'T' + startTime + ':00');
+                if (isNaN(dt.getTime())) { Alert.alert('Validation', 'Invalid date/time'); return; }
+                const end = new Date(dt.getTime() + (serviceDuration||60)*60000);
+
+                const payload = {
+                  name: nameField,
+                  surname: surnameField,
+                  email: emailField,
+                  phone: phoneField,
+                  service: parseInt(serviceId) || 0,
+                  start_time: dt.toISOString(),
+                  end_time: end.toISOString(),
+                };
+
+                const url = apiKey ? `${API_HOST}/bookings/create` : `${API_HOST}/bookings/createGuest`;
+                const headers = { 'Content-Type': 'application/json' };
+                if (apiKey) headers['Authorization'] = apiKey;
+
+                try {
+                  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
+                  const text = await res.text();
+                  if (!res.ok) throw new Error(text || 'Failed to create booking');
+                  Alert.alert('Success', 'Booking created');
+                  setModalVisible(false);
+                  // reset fields
+                  setNameField(''); setSurnameField(''); setEmailField(''); setPhoneField(''); setStartDate(''); setStartTime('');
+                  refreshBookings();
+                } catch (err) {
+                  Alert.alert('Error', err.message || String(err));
+                }
+              }} />
+              <View style={{ height: 10 }} />
+              <Button title="Cancel" color="#888" onPress={() => setModalVisible(false)} />
+            </View>
+          </ScrollView>
+        </Modal>
       </View>
     );
   }
