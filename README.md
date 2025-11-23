@@ -117,3 +117,33 @@ docker stack rm calendar_app
         *   [x] 3.4.1. Potwierdzenie powinno zawierać szczegóły rezerwacji (data, godzina, imię, nazwisko).
         *   [ ] 3.4.2. Potwierdzenie powinno zawierać opcję anulowania rezerwacji (np. link do anulowania).
     *   [x] 3.5. System powinien automatycznie wysyłać powiadomienie do administratora o nowej rezerwacji. (Opcjonalne)
+       
+
+# Aplikacja mobilna
+
+Podgląd aplikacji jest zrobiony przez webowy emulator Androida dostępny pod portem 6080.
+
+Uruchomienie stacku
+```
+docker compose up
+```
+
+Emulator powinien być dostępny pod adresem `http://localhost:6080`
+
+Połączenie emulatora z serwerem `react-native`
+```
+docker exec calendar_app_mobile adb connect calendar_app_emulator:5555
+```
+
+Wybudowanie pliku apk (tą komende też odpalamy żeby przetestować nowe zmiany w kodzie)
+```
+docker exec calendar_app_mobile npx react-native run-android
+```
+
+Przez brak możliwości konfiguracji domyślnego hosta react-native (znany błąd) trzeba to zrobić ręcznie
+
+1. W emulatorze klikamy `CTRL+M`
+<img width="370" height="591" alt="image" src="https://github.com/user-attachments/assets/24dbfac3-af1f-4771-b238-41f90253c3f4" />
+
+2. Wchodzimy w `Settings` i na samym dole `Debug server host & port for device`
+3. Wpisujemy `localhost:8081` i resetujemy aplikacje (tak jak normalnie na telefonie). To trzeba zrobić tylko raz przy nowym uruchomienu emulatora. Potem każda budowa aplikacji działa już normalnie
