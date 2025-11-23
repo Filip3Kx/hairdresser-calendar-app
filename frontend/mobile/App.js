@@ -14,8 +14,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // The backend is running in another container. From the Android emulator's perspective,
-// the host machine (which exposes the backend port) is accessible at 10.0.2.2.
-const API_HOST = 'http://calendar_app_backend:5000';
+// we use the backend's IP in the Docker network.
+const API_HOST = 'http://172.19.0.5:5000';
 
 const App = () => {
   const [apiKey, setApiKey] = useState(null);
@@ -33,6 +33,10 @@ const App = () => {
   const [surnameField, setSurnameField] = useState('');
   const [emailField, setEmailField] = useState('');
   const [phoneField, setPhoneField] = useState('');
+
+  // Edit booking state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingBooking, setEditingBooking] = useState(null);
 
   // Form state
   const [name, setName] = useState('');
@@ -74,10 +78,15 @@ const App = () => {
         throw new Error('Failed to fetch bookings');
       }
       const data = await res.json();
-      // map to simple objects
-      const formatted = data.map((b) => ({
+      // map to objects with all needed fields
+      const formatted = (data || []).map((b) => ({
         id: b.id,
         title: `${b.name} ${b.surname}`,
+        name: b.name,
+        surname: b.surname,
+        email: b.email,
+        phone: b.phone,
+        service: b.service,
         start: b.start_time,
         end: b.end_time,
       }));
@@ -156,6 +165,115 @@ const App = () => {
     }
   };
 
+  const handleDeleteBooking = async (bookingId) => {
+    Alert.alert(
+      'Delete Booking',
+      'Are you sure you want to delete this booking?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'DELETE',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_HOST}/bookings/delete`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': apiKey,
+                },
+                body: JSON.stringify({ id: parseInt(bookingId) }),
+              });
+              
+              if (!response.ok) {
+                throw new Error('Failed to delete booking');
+              }
+              
+              Alert.alert('Success', 'Booking deleted successfully');
+              refreshBookings();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete booking: ' + error.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleEditBooking = (booking) => {
+    // Load booking data for editing
+    const startDateTime = new Date(booking.start);
+    const endDateTime = new Date(booking.end);
+    
+    setEditingBooking({
+      id: booking.id,
+      name: booking.name,
+      surname: booking.surname,
+      email: booking.email,
+      phone: booking.phone,
+      service: booking.service,
+      startDate: startDateTime.toISOString().split('T')[0],
+      startTime: startDateTime.toISOString().split('T')[1].substring(0, 5),
+      endTime: endDateTime.toISOString().split('T')[1].substring(0, 5),
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingBooking) return;
+
+    // Walidacja
+    if (!editingBooking.name || !editingBooking.surname || !editingBooking.email) {
+      Alert.alert('Validation Error', 'Name, surname and email are required');
+      return;
+    }
+
+    try {
+      const startDateTime = new Date(editingBooking.startDate + 'T' + editingBooking.startTime + ':00');
+      const endDateTime = new Date(editingBooking.startDate + 'T' + editingBooking.endTime + ':00');
+
+      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+        Alert.alert('Validation Error', 'Invalid date or time format');
+        return;
+      }
+
+      const payload = {
+        id: parseInt(editingBooking.id),
+        name: editingBooking.name.trim(),
+        surname: editingBooking.surname.trim(),
+        email: editingBooking.email.trim(),
+        phone: editingBooking.phone || '',
+        service: parseInt(editingBooking.service) || 1,
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
+      };
+
+      const response = await fetch(`${API_HOST}/bookings/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': apiKey,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to update booking');
+      }
+
+      Alert.alert('Success', 'Booking updated successfully');
+      setEditModalVisible(false);
+      setEditingBooking(null);
+      refreshBookings();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update: ' + error.message);
+    }
+  };
+
   // If user is logged in, show calendar and booking UI
   if (apiKey) {
     return (
@@ -171,9 +289,27 @@ const App = () => {
           data={events.sort((a,b)=> new Date(a.start)-new Date(b.start))}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
-            <View style={{ padding: 10, borderBottomWidth: 1, borderColor: '#eee' }}>
-              <Text style={{ fontWeight: '600' }}>{item.title}</Text>
-              <Text>{new Date(item.start).toLocaleString()} - {new Date(item.end).toLocaleTimeString()}</Text>
+            <View style={{ padding: 10, borderBottomWidth: 1, borderColor: '#eee', backgroundColor: '#fff' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: '600', fontSize: 16 }}>{item.title}</Text>
+                  <Text style={{ color: '#666', marginTop: 4 }}>{new Date(item.start).toLocaleString()} - {new Date(item.end).toLocaleTimeString()}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity 
+                    onPress={() => handleEditBooking(item)}
+                    style={{ padding: 8, backgroundColor: '#4CAF50', borderRadius: 4, marginRight: 8 }}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>EDIT</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={() => handleDeleteBooking(item.id)}
+                    style={{ padding: 8, backgroundColor: '#ff4444', borderRadius: 4 }}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>DELETE</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           )}
           style={{ width: '100%', marginTop: 8 }}
@@ -239,6 +375,88 @@ const App = () => {
               <View style={{ height: 10 }} />
               <Button title="Cancel" color="#888" onPress={() => setModalVisible(false)} />
             </View>
+          </ScrollView>
+        </Modal>
+
+        <Modal visible={editModalVisible} animationType="slide">
+          <ScrollView contentContainerStyle={{ padding: 20 }}>
+            <Text style={styles.title}>Edit Booking</Text>
+
+            {editingBooking && (
+              <>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="Name" 
+                  value={editingBooking.name} 
+                  onChangeText={(text) => setEditingBooking({...editingBooking, name: text})} 
+                />
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="Surname" 
+                  value={editingBooking.surname} 
+                  onChangeText={(text) => setEditingBooking({...editingBooking, surname: text})} 
+                />
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="Email" 
+                  value={editingBooking.email} 
+                  onChangeText={(text) => setEditingBooking({...editingBooking, email: text})} 
+                  keyboardType="email-address" 
+                />
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="Phone" 
+                  value={editingBooking.phone} 
+                  onChangeText={(text) => setEditingBooking({...editingBooking, phone: text})} 
+                />
+
+                <Text style={{ marginTop: 8 }}>Date (YYYY-MM-DD)</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="2025-12-01" 
+                  value={editingBooking.startDate} 
+                  onChangeText={(text) => setEditingBooking({...editingBooking, startDate: text})} 
+                />
+                
+                <Text style={{ marginTop: 8 }}>Start Time (HH:MM)</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="14:30" 
+                  value={editingBooking.startTime} 
+                  onChangeText={(text) => setEditingBooking({...editingBooking, startTime: text})} 
+                />
+                
+                <Text style={{ marginTop: 8 }}>End Time (HH:MM)</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="15:30" 
+                  value={editingBooking.endTime} 
+                  onChangeText={(text) => setEditingBooking({...editingBooking, endTime: text})} 
+                />
+
+                <Text style={{ marginTop: 8 }}>Service</Text>
+                {services.map((s) => (
+                  <TouchableOpacity 
+                    key={s.id} 
+                    onPress={() => setEditingBooking({...editingBooking, service: s.id})} 
+                    style={{ 
+                      padding: 8, 
+                      backgroundColor: editingBooking.service==s.id?'#ddd':'#fff', 
+                      marginVertical: 4, 
+                      borderRadius:4 
+                    }}
+                  >
+                    <Text>{s.name} ({s.duration} min)</Text>
+                  </TouchableOpacity>
+                ))}
+
+                <View style={{ marginTop: 12 }}>
+                  <Button title="Save Changes" onPress={handleSaveEdit} />
+                  <View style={{ height: 10 }} />
+                  <Button title="Cancel" color="#888" onPress={() => { setEditModalVisible(false); setEditingBooking(null); }} />
+                </View>
+              </>
+            )}
           </ScrollView>
         </Modal>
       </View>
