@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import Logout from "./Logout";
 
-const AdminPage = ({ setIsLoggedIn, setEvents }) => {
+const AdminPage = ({ setIsLoggedIn, setEvents, setShowAdmin }) => {
   const [bookings, setBookings] = useState([]);
   const [services, setServices] = useState({});
   const [editingId, setEditingId] = useState(null);
@@ -121,7 +121,23 @@ const AdminPage = ({ setIsLoggedIn, setEvents }) => {
   return (
     <div>
       <h2>Admin Panel</h2>
-      <Logout setIsLoggedIn={setIsLoggedIn} setEvents={setEvents} />
+      <div style={{ marginBottom: "10px" }}>
+        <button 
+          onClick={() => setShowAdmin(false)} 
+          style={{ 
+            marginRight: "10px",
+            padding: "8px 16px",
+            backgroundColor: "#4CAF50",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer"
+          }}
+        >
+          ← Powrót do kalendarza
+        </button>
+        <Logout setIsLoggedIn={setIsLoggedIn} setEvents={setEvents} />
+      </div>
       <div style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid #ccc", marginTop: "20px", padding: "10px" }}>
         <h3>Upcoming Bookings</h3>
         {bookings.length === 0 ? (

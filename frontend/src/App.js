@@ -42,12 +42,15 @@ const App = () => {
       }).then((res) => {
         if (res.ok) {
           setIsAdmin(true);
-          setShowAdmin(true);
+          // Don't automatically show admin panel - let user choose
         } else {
           setIsAdmin(false);
           setShowAdmin(false);
         }
       });
+    } else {
+      setIsAdmin(false);
+      setShowAdmin(false);
     }
   }, [isLoggedIn]);
 
@@ -85,7 +88,25 @@ const App = () => {
             <button onClick={() => setShowRegister(true)}>Register</button>
           </>
         ) : (
-          <Logout setIsLoggedIn={setIsLoggedIn} setEvents={setEvents} />
+          <>
+            {isAdmin && (
+              <button 
+                onClick={() => setShowAdmin(true)}
+                style={{
+                  marginRight: "10px",
+                  padding: "8px 16px",
+                  backgroundColor: "#FF9800",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer"
+                }}
+              >
+                Panel Admina
+              </button>
+            )}
+            <Logout setIsLoggedIn={setIsLoggedIn} setEvents={setEvents} />
+          </>
         )}
       </div>
       <Calendar events={events} onDateClick={handleDateClick} />
