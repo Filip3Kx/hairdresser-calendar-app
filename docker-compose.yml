@@ -3,6 +3,35 @@ networks:
     name: calendar_app_network
 
 services:
+  android-emulator:
+    container_name: calendar_app_emulator
+    image: budtmo/docker-android
+    privileged: true 
+    ports:
+      - "6080:6080"  # noVNC (access via browser)
+      - "5554:5554"  # ADB emulator
+      - "5555:5555"  # ADB TCP
+    environment:
+      - DEVICE="Samsung Galaxy S10"
+      - EMULATOR_ARGS=-noaudio
+      - APPIUM=false
+      - WEB_VNC=true
+      - AUTO_START=false
+    networks:
+      - calendar_app_network
+
+  react-native:
+    container_name: calendar_app_mobile
+    build:
+      context: ./frontend/mobile
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081" # Metro bundler port
+    depends_on:
+      - android-emulator
+    networks:
+      - calendar_app_network
+
   frontend:
     container_name: calendar_app_nginx
     build:
