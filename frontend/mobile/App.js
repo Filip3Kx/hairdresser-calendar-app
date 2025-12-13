@@ -14,8 +14,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // The backend is running in another container. From the Android emulator's perspective,
-// we use the backend's IP in the Docker network.
-const API_HOST = 'http://172.19.0.5:5000';
+// the host machine (which exposes the backend port) is accessible at 10.0.2.2.
+const API_HOST = 'http://calendar_app_backend:5000';
 
 const App = () => {
   const [apiKey, setApiKey] = useState(null);
